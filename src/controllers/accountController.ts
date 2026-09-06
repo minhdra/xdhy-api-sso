@@ -6,7 +6,7 @@ import { REFRESH_COOKIE } from '../config/cookie';
 import { verifyToken } from '../config/jwt';
 import { AppError } from '../errors/AppError';
 import { AccountService } from '../services/accountService';
-import { SSO_APPS } from '../config/apps';
+import { AppService } from '../services/appService';
 import { type ChangePasswordInput, type RevokeSessionInput, type UpdateProfileInput } from '../schemas/account.schema';
 
 // session_id của phiên đang gọi - nằm trong refresh token cookie (payload
@@ -19,10 +19,20 @@ function currentSessionId(req: Request): string | null {
 
 @injectable()
 export class AccountController {
-  constructor(private accountService: AccountService) {}
+  constructor(
+    private accountService: AccountService,
+    private appService: AppService,
+  ) {}
 
-  listApps(_req: Request, res: Response): void {
-    res.json(SSO_APPS);
+  // Danh sách app cho trang chủ - trước đây là config tĩnh (src/config/apps.ts),
+  // giờ lấy từ bảng a_app + phân quyền a_app_access (xem AppService, migration
+  // 0005_app_registry.sql). Admin thấy hết, người khác chỉ thấy app được cấp.
+  async listApps(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      res.json(await this.appService.listForUser(req.userId as string));
+    } catch (error) {
+      next(error);
+    }
   }
 
   async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {

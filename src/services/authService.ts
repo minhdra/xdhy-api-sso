@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { config } from '../config/config';
 import { Action } from '../models/action';
+import { AppRepository } from '../repositories/appRepository';
 import { PasswordResetRepository } from '../repositories/passwordResetRepository';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
@@ -38,6 +39,7 @@ export class AuthService {
     private sessionRepository: SessionRepository,
     private passwordResetRepository: PasswordResetRepository,
     private treeUtility: Tree,
+    private appRepository: AppRepository,
   ) {}
 
   async login(
@@ -137,8 +139,12 @@ export class AuthService {
     const functionTree = this.treeUtility.getFunctionTree(functions, 1, '0');
     const actions = await this.userRepository.getActionByUserId(user.user_id);
     const action_results = actions.map((row) => (row as Action).action_code);
+    // Dùng ở FE để hiện/ẩn tab "Quản lý ứng dụng" - tính lại mỗi lần gọi
+    // (không cache trong token, xem requireAdmin.ts).
+    const is_admin = await this.appRepository.isAdmin(user.user_id);
 
     return {
+      is_admin,
       user_id: user.user_id,
       first_name: user.first_name,
       middle_name: user.middle_name,
