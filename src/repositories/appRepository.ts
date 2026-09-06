@@ -34,6 +34,15 @@ export class AppRepository {
     return Boolean(rows[0]?.v);
   }
 
+  // Cổng chặn thật ở backend (không chỉ ẩn/hiện UI) - app nào gọi GET
+  // /me?app=<key> đều tự bảo vệ được bằng 1 hàm này. Admin luôn true, app_key
+  // sai/không active luôn false cho non-admin (fail-closed) - logic nằm
+  // trong DB (a_UserHasAppAccess), không lặp lại ở TS.
+  async hasAccessToApp(userId: string, appKey: string): Promise<boolean> {
+    const rows = await this.db.raw(`SELECT "a_UserHasAppAccess"($1, $2) AS v`, [userId, appKey]);
+    return Boolean(rows[0]?.v);
+  }
+
   async listForUser(userId: string): Promise<SsoApp[]> {
     const result = await this.db.queryList(
       `CALL "a_ListAppsForUser"($1, NULL, NULL, NULL)`,

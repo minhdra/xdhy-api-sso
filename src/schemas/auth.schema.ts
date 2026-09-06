@@ -9,6 +9,16 @@ export const loginSchema = z
   .openapi('LoginRequest');
 export type LoginInput = z.infer<typeof loginSchema>;
 
+// `app` (tuỳ chọn): app_key của app đang gọi /me để tự bảo vệ - xem
+// AppService.canAccessApp. Không truyền = chỉ lấy danh tính, không gate app
+// nào (đúng cách sso-web tự gọi cho chính nó).
+export const meQuerySchema = z
+  .object({
+    app: z.string().min(1).optional(),
+  })
+  .openapi('MeQuery');
+export type MeQuery = z.infer<typeof meQuerySchema>;
+
 export const forgotPasswordSchema = z
   .object({
     email: z.string().email('Email không hợp lệ'),

@@ -29,6 +29,13 @@ export class AppService {
     return this.appRepository.isAdmin(userId);
   }
 
+  // Dùng ở GET /me?app=<key> - mọi app tự bảo vệ được, không phải chỉ ẩn/
+  // hiện ở trang chủ sso-web (xem technical_decisions.md mục "Enforce quyền
+  // app ở /me, không chỉ UI").
+  canAccessApp(userId: string, appKey: string): Promise<boolean> {
+    return this.appRepository.hasAccessToApp(userId, appKey);
+  }
+
   listForUser(userId: string): Promise<SsoApp[]> {
     return this.appRepository.listForUser(userId);
   }

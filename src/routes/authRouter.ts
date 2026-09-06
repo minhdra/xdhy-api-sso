@@ -7,6 +7,7 @@ import { defineRoute } from '../openapi/defineRoute';
 import {
   forgotPasswordSchema,
   loginSchema,
+  meQuerySchema,
   resetPasswordConfirmSchema,
 } from '../schemas/auth.schema';
 
@@ -69,10 +70,14 @@ authRouter.get(
     method: 'get',
     path: '/me',
     tags,
-    summary: 'Thông tin user đang đăng nhập + cây quyền (functions/actions)',
+    summary:
+      'Thông tin user đang đăng nhập + cây quyền (functions/actions). ' +
+      'Kèm ?app=<app_key> để tự bảo vệ app đó (403 nếu không có quyền).',
+    schema: { query: meQuerySchema },
     responses: {
       200: { description: 'Thông tin user' },
       401: { description: 'Chưa đăng nhập' },
+      403: { description: 'Có app_key nhưng không có quyền truy cập app đó' },
     },
   }),
   requireAuth,

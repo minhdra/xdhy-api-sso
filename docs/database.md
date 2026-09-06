@@ -44,6 +44,7 @@ unwrap 3 `OUT` này thống nhất.
 | `a_UpdateSelfProfile(user_id, full_name, email, phone, gender, dob, lu_user_id)` | 0004 | Chỉ sửa `user_profiles` (+ đồng bộ `employee.fullname/email/phone_number`) — **không đụng** branch/department/position/type |
 | `a_SetAvatar(user_id, avatar, lu_user_id)` | 0004 | Chỉ `user_profiles.avatar` |
 | `a_IsUserAdmin(user_id)` — **FUNCTION**, không phải procedure | 0005 | `true` nếu có role active `role_code='sa'`. Gọi qua `SELECT`, không phải `CALL` |
+| `a_UserHasAppAccess(user_id, app_key)` — **FUNCTION** | 0006 | `true` nếu admin, hoặc có dòng `a_app_access` khớp `app_key` (app phải `active_flag=1`). Dùng ở `GET /me?app=` — chốt chặn thật, không chỉ ẩn/hiện UI, xem `api.md` |
 | `a_ListAppsForUser(user_id)` | 0005 | Admin thấy mọi app active; người khác chỉ thấy app có trong `a_app_access` |
 | `a_AdminListApps()` | 0005 | Toàn bộ app active kèm đếm `access_count` |
 | `a_AdminUpsertApp(app_id, app_key, app_name, description, url, color, sort_order, lu_user_id)` | 0005 | `app_id` rỗng = tạo mới (check trùng `app_key`); có giá trị = cập nhật |

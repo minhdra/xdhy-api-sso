@@ -11,16 +11,21 @@ import {
 import { generateAccessToken, generateRefreshToken, verifyToken } from '../config/jwt';
 import { AppError } from '../errors/AppError';
 import { AuthService } from '../services/authService';
+import { AppService } from '../services/appService';
 
 import {
   type ForgotPasswordInput,
   type LoginInput,
+  type MeQuery,
   type ResetPasswordConfirmInput,
 } from '../schemas/auth.schema';
 
 @injectable()
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private appService: AppService,
+  ) {}
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -119,6 +124,20 @@ export class AuthController {
       if (!decoded || decoded.type !== 'access') {
         next(new AppError(401, 'Bạn không được cấp quyền!'));
         return;
+      }
+
+      // Chốt chặn thật ở backend cho app nào tự khai `?app=<key>` lúc gọi
+      // /me (thường là lúc bootstrap) - không có tham số này thì /me chỉ trả
+      // danh tính như cũ (sso-web tự gọi cho chính nó không cần gate).
+      // Trước đây chỉ ẩn/hiện app ở trang chủ sso-web (GET /apps), có token
+      // hợp lệ vẫn gõ thẳng URL vào được - đây là nơi chặn thật.
+      const { app: appKey } = req.query as unknown as MeQuery;
+      if (appKey) {
+        const allowed = await this.appService.canAccessApp(decoded.user_id, appKey);
+        if (!allowed) {
+          next(new AppError(403, 'Bạn không có quyền truy cập ứng dụng này.'));
+          return;
+        }
       }
 
       const result = await this.authService.me(decoded.user_id);

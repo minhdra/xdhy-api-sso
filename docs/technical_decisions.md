@@ -89,3 +89,33 @@ trong code, và thay cho phương án cấp theo role. **Vì sao không cấp th
 yêu cầu, trong khi user-based đơn giản hơn và đúng UX "multi-select người dùng" mà trang quản trị cần.
 **"Admin" tái dùng role có sẵn (`role_code='sa'`)** thay vì tạo khái niệm quyền mới — nhất quán với
 cách hệ thống đã hiểu "quản trị hệ thống" từ trước (`roles` table, từng dùng ở `api-gateway` bản cũ).
+
+## Enforce quyền app ở `/me`, không chỉ ẩn/hiện UI
+
+**Bối cảnh:** bản đầu của "phân quyền ứng dụng" chỉ lọc kết quả `GET /apps` (trang chủ `sso-web` không
+hiện tile app chưa được cấp) — **không** có gì chặn ở tầng backend. User chỉ ra đúng lỗ hổng: ai có
+cookie hợp lệ (đăng nhập thành công) vẫn gõ thẳng URL vào được bất kỳ app nào, vì `build-web`/
+`api-task-management`/`api-gateway` chỉ verify chữ ký JWT (xác thực), không biết gì về `a_app_access`
+(phân quyền). **Chọn:** thêm tham số `?app=<app_key>` cho `GET /me` — app nào muốn tự bảo vệ tự gọi
+`/me` kèm `app_key` của mình (thường đã có sẵn lời gọi `/me` lúc bootstrap để biết "đã đăng nhập
+chưa", chỉ cần thêm query param), `api-sso` trả 403 nếu không có quyền. **Vì sao chọn `/me` thay vì
+thêm hạ tầng gateway riêng:** tái dùng đúng lời gọi mọi app đã có sẵn, không cần thêm policy/pipeline
+mới ở `api-gateway` cho từng app — đúng tinh thần tối thiểu, một chỗ. **Vì sao tra DB trực tiếp (qua
+hàm `a_UserHasAppAccess`) thay vì nhúng danh sách app được phép vào JWT claim:** thu hồi quyền có hiệu
+lực ngay lập tức (không đợi access token hết hạn/refresh), cùng triết lý với cách `requireAuth` đã tra
+`isSessionActive` mỗi request — đổi lại là 1 query DB thêm mỗi lần app gọi `/me?app=`, chấp nhận được vì
+đây thường chỉ là 1 lần lúc bootstrap, không phải mỗi API nghiệp vụ.
+
+**Fail-closed khi `app_key` sai/không active:** cân nhắc giữa "bỏ qua kiểm tra nếu app_key lạ" (dễ debug
+hơn) và "coi như không có quyền" (an toàn hơn) — chọn vế sau, vì gõ sai tên app_key (lỗi đánh máy khi
+tích hợp) không được phép vô tình tắt luôn lớp bảo vệ.
+
+**Chưa làm (rollout, không phải giới hạn kỹ thuật):** `build-web` **chưa** gọi `/me` kèm `?app=` —
+hành vi hiện tại của `build-web` (ai đăng nhập cũng dùng được) **không đổi**. Cơ chế đã sẵn sàng và
+kiểm thử được ngay (`curl .../me?app=finance`), nhưng bật thật cho `build-web` cần: (1) `build-web`
+chọn đúng `app_key` của chính nó (dự kiến tách thành nhiều app riêng theo module — tài chính/nhiệm vụ —
+xem ghi chú trong `sso-web/docs`), (2) seed `a_app_access` cho toàn bộ user đang active trước khi bật,
+tránh khoá nhầm cả công ty ngay lúc deploy, (3) `build-web` xử lý riêng 403 (không có quyền) khác 401
+(chưa đăng nhập) — hiện interceptor của `build-web` gộp chung 401/403 thành "thử refresh rồi đăng xuất",
+sai ngữ nghĩa cho trường hợp "đã đăng nhập nhưng không được cấp quyền". Đây là quyết định cần chốt riêng
+lúc bật enforcement thật, không tự ý làm trong lúc chỉ mới dựng cơ chế.
