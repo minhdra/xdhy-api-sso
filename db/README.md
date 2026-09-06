@@ -10,6 +10,9 @@ Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng,
 | 0002 | `0002_create_a_refresh_token.sql` | Tạo bảng refresh token có khả năng thu hồi `a_refresh_token`. |
 | 0003 | `0003_create_a_password_reset_token.sql` | Tạo bảng token đặt lại mật khẩu dùng một lần. |
 | 0004 | `0004_account_stored_procs.sql` | Tạo/cập nhật các procedure hồ sơ, mật khẩu và avatar của tài khoản. |
+| 0005 | `0005_app_registry.sql` | Bảng `a_app`/`a_app_access` (phân quyền ứng dụng theo người) + proc quản trị, seed 4 app (`finance`/`task`/`chat`/`meeting`). |
+| 0006 | `0006_app_access_check.sql` | Hàm `a_UserHasAppAccess` — chặn thật ở `GET /me?app=`, không chỉ ẩn/hiện UI. |
+| 0007 | `0007_seed_app_access_finance_task.sql` | Seed `a_app_access` cho **mọi user active hiện có** × app `finance`+`task` — bắt buộc trước khi `build-web`/`task-web` bật gửi `?app=` thật (07/09/2026), tránh khoá nhầm cả công ty lúc deploy. |
 
 Bản sửa kiểm tra phiên bị thu hồi ngày 06/09/2026 chỉ thay đổi logic API/JWT và dùng các cột đã có (`session_id`, `user_id`, `revoked_at`, `expires_at`), vì vậy không phát sinh migration SQL mới.
 

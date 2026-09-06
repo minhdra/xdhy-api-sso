@@ -110,12 +110,16 @@ lực ngay lập tức (không đợi access token hết hạn/refresh), cùng t
 hơn) và "coi như không có quyền" (an toàn hơn) — chọn vế sau, vì gõ sai tên app_key (lỗi đánh máy khi
 tích hợp) không được phép vô tình tắt luôn lớp bảo vệ.
 
-**Chưa làm (rollout, không phải giới hạn kỹ thuật):** `build-web` **chưa** gọi `/me` kèm `?app=` —
-hành vi hiện tại của `build-web` (ai đăng nhập cũng dùng được) **không đổi**. Cơ chế đã sẵn sàng và
-kiểm thử được ngay (`curl .../me?app=finance`), nhưng bật thật cho `build-web` cần: (1) `build-web`
-chọn đúng `app_key` của chính nó (dự kiến tách thành nhiều app riêng theo module — tài chính/nhiệm vụ —
-xem ghi chú trong `sso-web/docs`), (2) seed `a_app_access` cho toàn bộ user đang active trước khi bật,
-tránh khoá nhầm cả công ty ngay lúc deploy, (3) `build-web` xử lý riêng 403 (không có quyền) khác 401
-(chưa đăng nhập) — hiện interceptor của `build-web` gộp chung 401/403 thành "thử refresh rồi đăng xuất",
-sai ngữ nghĩa cho trường hợp "đã đăng nhập nhưng không được cấp quyền". Đây là quyết định cần chốt riêng
-lúc bật enforcement thật, không tự ý làm trong lúc chỉ mới dựng cơ chế.
+**Đã bật thật (07/09/2026):** sau khi tách `task-web` khỏi `build-web` (xem
+`api-task-management/docs/task_management_split_plan.md`), cả 2 app đều gọi `/me` kèm `?app=` —
+`build-web` dùng `app_key="finance"` (còn lại administration + tài chính sau khi tách task, không có
+app_key riêng cho administration trong 4 app đã seed), `task-web` dùng `app_key="task"`
+(`src/constant/config.ts` mỗi app). Đủ cả 3 điều kiện từng liệt kê ở đây trước khi bật: (1) app_key đã
+chọn xong ở trên, (2) `a_app_access` đã seed cho toàn bộ user active hiện có × 2 app_key này
+(migration `0007_seed_app_access_finance_task.sql`, tránh khoá nhầm cả công ty), (3) cả 2 app đã tách
+trạng thái `authStatus="forbidden"` riêng (khác `"unauthenticated"`) trong bootstrap `/me` — 403 hiện
+trang "Không có quyền truy cập ứng dụng này" + nút đăng xuất, KHÔNG đá về trang login (interceptor
+axios ở tầng gọi API *sau* bootstrap vốn đã phân biệt đúng từ trước, chỉ riêng lời gọi `/me` bootstrap
+ban đầu là gộp chung — đây là chỗ đã sửa). Verify end-to-end trên sandbox: mint JWT thật + session hợp
+lệ, gọi `/me?app=finance` trả 200 lúc có quyền, xoá `a_app_access` → 403 ngay lập tức, thêm lại → 200
+lại.
