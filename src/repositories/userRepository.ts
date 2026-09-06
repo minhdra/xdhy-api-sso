@@ -118,27 +118,64 @@ export class UserRepository {
     }
   }
 
-  async changePassword(
-    user_id: string,
-    old_password: string,
-    new_password: string,
-    lu_user_id: string,
-  ): Promise<any> {
-    const sql = `
-      CALL "ChangePassword"(
-        $1,
-        $2,
-        $3,
-        $4,
-        NULL,
-        NULL,
-        NULL
-      )
-    `;
+  // Hash mật khẩu hiện tại - verify mật khẩu cũ bằng bcrypt ở tầng app
+  // (bcrypt.compare không làm trong SQL được). Proc "a_GetUserPasswordHash".
+  async getPasswordHash(user_id: string): Promise<string | null> {
+    const row = await this.db.query(
+      `CALL "a_GetUserPasswordHash"($1, NULL, NULL, NULL)`,
+      [user_id],
+    );
+    return row?.password ?? null;
+  }
 
-    await this.db.query(sql, [user_id, old_password, new_password, lu_user_id]);
+  // Ghi mật khẩu mới (đã hash bcrypt sẵn ở tầng app). Proc "a_SetUserPassword"
+  // dùng cho cả đổi mật khẩu từ trang tài khoản lẫn nâng cấp hash MD5->bcrypt
+  // lúc đăng nhập.
+  async setPassword(user_id: string, new_password_hash: string, lu_user_id: string): Promise<void> {
+    await this.db.query(
+      `CALL "a_SetUserPassword"($1, $2, $3, NULL, NULL, NULL)`,
+      [user_id, new_password_hash, lu_user_id],
+    );
+  }
 
-    return true;
+  // Hồ sơ đầy đủ cho trang "Quản lý tài khoản" - gồm cả tên phòng ban / chức
+  // vụ / chi nhánh (chỉ hiển thị, user không tự sửa). Proc "a_GetAccountProfile".
+  async getAccountProfile(user_id: string): Promise<any | null> {
+    return this.db.query(`CALL "a_GetAccountProfile"($1, NULL, NULL, NULL)`, [user_id]);
+  }
+
+  // Avatar sửa riêng (upload file). Proc "a_SetAvatar".
+  async setAvatar(user_id: string, avatar_url: string, lu_user_id: string): Promise<void> {
+    await this.db.query(
+      `CALL "a_SetAvatar"($1, $2, $3, NULL, NULL, NULL)`,
+      [user_id, avatar_url, lu_user_id],
+    );
+  }
+
+  // Cập nhật các field hồ sơ tự phục vụ (chỉ những field user được sửa). Proc
+  // "a_UpdateSelfProfile" - KHÔNG dùng "UpdateUser" của api-core (proc đó set
+  // cả branch/department/position/type nên phải nạp lại hết rồi merge, dễ vỡ).
+  async updateSelfProfile(user: {
+    user_id: string;
+    full_name: string;
+    email: string;
+    phone_number: string | null;
+    gender: number | null;
+    date_of_birth: string | null;
+    lu_user_id: string;
+  }): Promise<void> {
+    await this.db.query(
+      `CALL "a_UpdateSelfProfile"($1, $2, $3, $4, $5, $6, $7, NULL, NULL, NULL)`,
+      [
+        user.user_id,
+        user.full_name,
+        user.email,
+        user.phone_number,
+        user.gender,
+        user.date_of_birth,
+        user.lu_user_id,
+      ],
+    );
   }
 
   async getUserById(id: string): Promise<any> {

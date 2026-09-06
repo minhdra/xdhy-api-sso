@@ -14,7 +14,7 @@ import { Tree } from '../utilities/tree';
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 
-const REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d - hạn dòng auth_refresh_token khi remember
+const REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d - hạn dòng a_refresh_token khi remember
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7d - khi không remember
 
 export interface LoginResult {
@@ -56,15 +56,12 @@ export class AuthService {
 
     // Nâng cấp hash cũ (MD5) lên bcrypt ngay khi đăng nhập thành công - copy
     // nguyên logic từ api-core/src/services/userService.ts (UserService.authenticate).
+    // Ghi qua ResetPasswordByAdmin (proc "ChangePassword" mà bản gốc gọi KHÔNG
+    // tồn tại trong build_management - đường này âm thầm hỏng mỗi lần).
     if (!isBcryptHash(user.password)) {
       try {
         const upgradedHash = await hashPassword(password);
-        await this.userRepository.changePassword(
-          user.user_id,
-          user.password,
-          upgradedHash,
-          user.user_id,
-        );
+        await this.userRepository.setPassword(user.user_id, upgradedHash, user.user_id);
       } catch (error) {
         console.error('Không nâng cấp được hash mật khẩu MD5 -> bcrypt:', error);
       }
@@ -107,13 +104,19 @@ export class AuthService {
   async refresh(
     sessionId: string,
     jti: string,
-  ): Promise<{ user_id: string; remember: boolean; accessExpiresIn: string } | null> {
+  ): Promise<{
+    user_id: string;
+    session_id: string;
+    remember: boolean;
+    accessExpiresIn: string;
+  } | null> {
     const row = await this.sessionRepository.getValidRefreshToken(jti);
     if (!row || row.session_id !== sessionId) return null;
 
     await this.sessionRepository.touchSession(row.session_id);
     return {
       user_id: row.user_id,
+      session_id: row.session_id,
       remember: row.remember,
       accessExpiresIn: row.remember ? '1d' : '15m',
     };

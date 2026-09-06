@@ -6,7 +6,7 @@ export interface ValidResetToken {
   user_id: string;
 }
 
-// Bảng mới của riêng api-sso (password_reset_token, xem db/migrations/) - SQL
+// Bảng mới của riêng api-sso (a_password_reset_token, xem db/migrations/) - SQL
 // thuần qua Database.raw(), cùng quy ước với SessionRepository.
 @injectable()
 export class PasswordResetRepository {
@@ -14,14 +14,14 @@ export class PasswordResetRepository {
 
   async create(params: { tokenHash: string; userId: string; expiresAt: Date }): Promise<void> {
     await this.db.raw(
-      `INSERT INTO password_reset_token (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
+      `INSERT INTO a_password_reset_token (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
       [params.tokenHash, params.userId, params.expiresAt],
     );
   }
 
   async findValid(tokenHash: string): Promise<ValidResetToken | null> {
     const rows = await this.db.raw(
-      `SELECT user_id FROM password_reset_token
+      `SELECT user_id FROM a_password_reset_token
        WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()`,
       [tokenHash],
     );
@@ -29,7 +29,7 @@ export class PasswordResetRepository {
   }
 
   async markUsed(tokenHash: string): Promise<void> {
-    await this.db.raw(`UPDATE password_reset_token SET used_at = now() WHERE token_hash = $1`, [
+    await this.db.raw(`UPDATE a_password_reset_token SET used_at = now() WHERE token_hash = $1`, [
       tokenHash,
     ]);
   }

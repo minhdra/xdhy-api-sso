@@ -26,7 +26,7 @@ const connectionConfig = {
 
 // Copy nguyên văn từ api-core/src/config/database.ts (pool + circuit breaker +
 // retry) - CHỈ khác biệt cố ý: thêm method `raw()` ở cuối file, dùng cho 2
-// bảng mới auth_session/auth_refresh_token (SQL thuần, không theo quy ước
+// bảng mới a_session/a_refresh_token (SQL thuần, không theo quy ước
 // stored-procedure p_error_code/p_result như phần còn lại của DB). Xem plan
 // mục 3 ("File cần tạo/sửa") - đây là điểm khác biệt duy nhất so với bản gốc
 // ngoài jwt.ts/cookie.ts.
@@ -271,7 +271,7 @@ export class Database {
     });
   }
 
-  // Khác biệt cố ý so với bản gốc: SQL thuần cho auth_session/auth_refresh_token
+  // Khác biệt cố ý so với bản gốc: SQL thuần cho a_session/a_refresh_token
   // (bảng mới của riêng api-sso, không qua stored procedure) - trả thẳng
   // result.rows, không unwrap theo quy ước p_error_code/p_result.
   public async raw(sql: string, values: any[] = []): Promise<any[]> {

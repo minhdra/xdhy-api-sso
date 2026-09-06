@@ -12,20 +12,11 @@ import { generateAccessToken, generateRefreshToken, verifyToken } from '../confi
 import { AppError } from '../errors/AppError';
 import { AuthService } from '../services/authService';
 
-interface LoginBody {
-  username: string;
-  password: string;
-  remember?: boolean;
-}
-
-interface ForgotPasswordBody {
-  email: string;
-}
-
-interface ResetPasswordConfirmBody {
-  token: string;
-  newPassword: string;
-}
+import {
+  type ForgotPasswordInput,
+  type LoginInput,
+  type ResetPasswordConfirmInput,
+} from '../schemas/auth.schema';
 
 @injectable()
 export class AuthController {
@@ -33,11 +24,9 @@ export class AuthController {
 
   async login(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { username, password, remember } = req.body as LoginBody;
-      if (!username || !password) {
-        next(new AppError(400, 'Thiếu tài khoản hoặc mật khẩu.'));
-        return;
-      }
+      // Body đã qua zod (loginSchema) - username/password chắc chắn có,
+      // remember là boolean (default false).
+      const { username, password, remember } = req.body as LoginInput;
       const rememberFlag = remember === true;
 
       const result = await this.authService.login(username, password, rememberFlag, {
@@ -56,6 +45,7 @@ export class AuthController {
           full_name: result.user.full_name,
           user_name: result.user.user_name,
           role_group: result.user.role_group,
+          session_id: result.sessionId,
         },
         result.accessExpiresIn,
       );
@@ -92,7 +82,10 @@ export class AuthController {
         return;
       }
 
-      const accessToken = generateAccessToken({ user_id: result.user_id }, result.accessExpiresIn);
+      const accessToken = generateAccessToken(
+        { user_id: result.user_id, session_id: result.session_id },
+        result.accessExpiresIn,
+      );
       res.cookie(ACCESS_COOKIE, accessToken, accessCookieOptions(result.remember));
       res.json({ success: true });
     } catch (error) {
@@ -141,11 +134,7 @@ export class AuthController {
 
   async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { email } = req.body as ForgotPasswordBody;
-      if (!email) {
-        next(new AppError(400, 'Thiếu email.'));
-        return;
-      }
+      const { email } = req.body as ForgotPasswordInput;
       // Luôn trả 1 message chung dù email có tồn tại hay không - tránh lộ
       // thông tin tài khoản nào tồn tại (service tự bỏ qua âm thầm nếu không
       // tìm thấy).
@@ -161,15 +150,8 @@ export class AuthController {
 
   async resetPasswordConfirm(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { token, newPassword } = req.body as ResetPasswordConfirmBody;
-      if (!token || !newPassword) {
-        next(new AppError(400, 'Thiếu thông tin.'));
-        return;
-      }
-      if (newPassword.length < 6) {
-        next(new AppError(400, 'Mật khẩu mới phải có ít nhất 6 ký tự.'));
-        return;
-      }
+      // Body đã qua zod (resetPasswordConfirmSchema): token có, newPassword >= 6.
+      const { token, newPassword } = req.body as ResetPasswordConfirmInput;
       const ok = await this.authService.resetPasswordConfirm(token, newPassword);
       if (!ok) {
         next(new AppError(400, 'Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.'));

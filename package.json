@@ -11,6 +11,7 @@
     "start:prod": "node dist/index.js"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^9.1.0",
     "@ltv/env": "^3.0.0",
     "bcrypt": "^5.0.1",
     "cookie-parser": "^1.4.7",
@@ -21,11 +22,14 @@
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.0",
     "md5": "^2.3.0",
+    "multer": "^2.0.2",
     "nodemailer": "^6.9.7",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.1.13",
+    "swagger-ui-express": "^5.0.1",
     "tsyringe": "^4.7.0",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
@@ -34,9 +38,11 @@
     "@types/express": "^4.17.17",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/md5": "^2.3.6",
+    "@types/multer": "^2.0.0",
     "@types/node": "^20.1.4",
     "@types/nodemailer": "^6.4.14",
     "@types/pg": "^8.15.5",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^9.0.1",
     "cross-env": "^10.1.0",
     "nodemon": "^3.1.10",
@@ -47,5 +53,6 @@
     "onlyBuiltDependencies": [
       "bcrypt"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.30.2+sha512.36cdc707e7b7940a988c9c1ecf88d084f8514b5c3f085f53a2e244c2921d3b2545bc20dd4ebe1fc245feec463bb298aecea7a63ed1f7680b877dc6379d8d0cb4"
 }
