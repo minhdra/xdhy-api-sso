@@ -20,6 +20,10 @@ export interface SsoAppUser {
   user_id: string;
   user_name: string;
   full_name: string;
+  // Đường dẫn lưu DB (chưa phải URL gọi được) - 2 dạng: legacy "uploads\..."
+  // (api-core cũ) hoặc "/api-sso/uploads/..." (mới). FE tự dựng URL đầy đủ
+  // (xem sso-web/src/api.ts avatarSrc()), BE trả nguyên văn.
+  avatar: string | null;
   position_name: string | null;
 }
 
