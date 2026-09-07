@@ -74,12 +74,13 @@ chấp nhận được, dọn sau nếu cần.
 
 ## `sso-web` là frontend độc lập, không phải trang tĩnh do `api-sso` phục vụ
 
-**Chọn:** `sso-web` build/deploy như 1 app riêng (Vite+React), gọi API cross-origin sang `api-gateway`
-— không phải HTML tĩnh trong `api-sso/public`. **Vì sao:** thử phương án phục vụ qua gateway trước
-(đơn giản hơn, same-origin), nhưng giao diện cần đầy đủ (toast, dark mode, form quên mật khẩu, trang
-quản lý tài khoản nhiều tab) khiến HTML+JS thuần không hợp lý — đổi hướng sang 1 SPA đầy đủ, giống
-`build-web`. Đánh đổi: cần cấu hình CORS riêng (`SSO_ORIGIN`, tách khỏi `CORS_ORIGIN` của build-web —
-gói `cors` coi origin string là 1 literal, không tự tách theo dấu phẩy để match nhiều origin).
+**Chọn:** `sso-web` build/deploy như 1 app riêng (Vite+React) — không phải HTML tĩnh trong
+`api-sso/public`. **Vì sao:** thử phương án phục vụ qua gateway trước (đơn giản hơn), nhưng giao diện
+cần đầy đủ (toast, dark mode, form quên mật khẩu, trang quản lý tài khoản nhiều tab) khiến HTML+JS
+thuần không hợp lý — đổi hướng sang 1 SPA đầy đủ, giống `build-web`. Gọi API **same-origin** qua nginx
+proxy của chính `sso-web` (cả dev lẫn production — xem `sso-web/docs/technical_decisions.md` mục "Gọi
+API same-origin..."), nên `api-gateway` **không còn CORS/`SSO_ORIGIN` cho sso-web nữa** (đã xoá hẳn
+07/09/2026, không phải chỉ để trống).
 
 ## Phân quyền ứng dụng: bảng DB thay config tĩnh, cấp theo người không theo role
 

@@ -22,7 +22,8 @@ sso-web (đăng nhập, quản lý tài khoản)   build-web (app chính)
 
 `api-sso` là **API thuần** — không phục vụ HTML nào (kể cả trang login), khác hẳn `api-core` bản cũ.
 Giao diện đăng nhập/quản lý tài khoản nằm ở [`sso-web`](../../sso-web) (frontend độc lập, port riêng),
-gọi API cross-origin qua `api-gateway`. Không tự publish port ra internet trong production (chỉ
+gọi API same-origin qua nginx proxy của chính nó sang `api-gateway` (giống `build-web`/`task-web` —
+xem `sso-web/docs/architecture.md`). Không tự publish port ra internet trong production (chỉ
 `expose`, đúng nguyên tắc "chỉ frontend + gateway mở cổng" — xem `docker-compose.sso-sandbox.yml`).
 
 `api-sso` tách ra từ `api-core`: `login/refresh/logout/me/forgot-password` từng nằm trong

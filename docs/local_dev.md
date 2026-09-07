@@ -58,11 +58,10 @@ là hành vi cố ý (không cho vào giao diện khi chưa xác định đượ
       rồi trỏ `DB_HOST=localhost`/`DB_PORT=15432` cho cả 3).
 - [ ] `api-gateway/.env`: `URL_CORE`/`URL_SSO`/`URL_TASK_MANAGEMENT`/`JWT_JWKS_URI` trỏ đúng port ở
       mục 1 (mặc định trong `.env.example` đã đúng, chỉ cần copy).
-- [ ] `api-gateway/.env`: `CORS_ORIGIN` = origin `build-web` (`http://localhost:3010`), `SSO_ORIGIN` =
-      origin `sso-web` (`http://localhost:5173`) — 2 biến **tách riêng**, gộp chung sẽ lỗi CORS (gói
-      `cors` coi origin là 1 chuỗi literal, không tự tách theo dấu phẩy). `task-web` **không cần** thêm
-      vào đây — nó gọi gateway qua proxy của chính vite dev server (server-to-server), không phải
-      browser gọi thẳng nên không bị CORS chặn.
+- [ ] `api-gateway/.env`: `CORS_ORIGIN` = origin `build-web` (`http://localhost:3010`). `task-web`/
+      `sso-web` **không cần** thêm gì ở đây — cả 2 đều gọi gateway qua proxy của chính vite dev server
+      (server-to-server), không phải browser gọi thẳng nên không bị CORS chặn (gateway không còn biến
+      `SSO_ORIGIN` nữa, đã bỏ 07/09/2026).
 - [ ] `api-sso/.env`: `COOKIE_DOMAIN` để **rỗng** khi chạy local (không set `=.xaydung.vn` hay tương
       tự) — cookie host-only theo đúng hostname `localhost`.
 - [ ] `build-web/.env`, `task-web/.env`, `sso-web/.env`: `VITE_SSO_URL` — để rỗng thì build-web/task-web
