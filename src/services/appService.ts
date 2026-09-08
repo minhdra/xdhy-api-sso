@@ -84,4 +84,10 @@ export class AppService {
   listUsers(): Promise<SsoAppUser[]> {
     return this.appRepository.adminListUsers();
   }
+
+  // Endpoint nội bộ: trả về tập con user_id được phép truy cập app_key.
+  filterUsersWithAppAccess(appKey: string, userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return Promise.resolve([]);
+    return this.appRepository.filterUsersWithAppAccess(appKey, userIds);
+  }
 }

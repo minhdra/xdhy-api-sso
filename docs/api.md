@@ -59,6 +59,20 @@ tên vô tình tắt luôn kiểm tra.
 | POST | `/admin/apps/{app_id}/access` | `{ user_ids: string[] }` | **Thay toàn bộ** danh sách (không phải cộng/trừ từng người) |
 | GET | `/admin/users` | — | Danh sách user active (cho ô chọn multi-select ở trang quản trị) |
 
+## Nội bộ (`/internal/*`) — server-to-server, KHÔNG qua gateway, KHÔNG JWT
+
+Mount ở app level (`app.ts`), **ngoài** router `/api-sso` — gateway chỉ rewrite `/api/sso/*` →
+`/api-sso/*` nên `/internal/*` không lộ ra ngoài. Xác thực bằng header `X-Internal-Secret`
+(`middlewares/internalAuth.ts`, `timingSafeEqual`), giá trị `INTERNAL_SECRET`. Không lên Swagger.
+
+| Method | Path | Body | Việc gì |
+| --- | --- | --- | --- |
+| POST | `/internal/app-access/filter` | `{ app_key, user_ids: string[] }` | → `{ allowed_user_ids: string[] }` — lọc tập user, giữ lại người có quyền app (admin `sa` bypass tính là có; `app_key` sai/không active → loại hết non-admin). Dùng hàm `a_FilterUsersWithAppAccess` (bọc `a_UserHasAppAccess`). |
+
+Client hiện tại: `api-task-management` (`src/integrations/ssoInternalClient.ts`) — lọc danh sách chọn
+người ở màn Phân quyền công trình theo quyền app `task`. Xem
+[`../../api-task-management/docs/phan_quyen_giam_sat_app_gate.md`](../../api-task-management/docs/phan_quyen_giam_sat_app_gate.md).
+
 ## Quy ước lỗi
 
 `errors/errorHandler.ts`: `AppError(statusCode, message)` → `{ success: false, message }` đúng status;

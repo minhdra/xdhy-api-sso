@@ -108,4 +108,16 @@ export class AppRepository {
     const result = await this.db.queryList(`CALL "a_AdminListUsers"(NULL, NULL, NULL)`, []);
     return result.rows as SsoAppUser[];
   }
+
+  // Lọc 1 tập user_id, trả về những người được phép truy cập app_key (gồm cả
+  // admin bypass) - dùng ở endpoint nội bộ POST /internal/app-access/filter.
+  // a_FilterUsersWithAppAccess (0009) chỉ bọc lại a_UserHasAppAccess, không
+  // lặp logic phân quyền ở TS.
+  async filterUsersWithAppAccess(appKey: string, userIds: string[]): Promise<string[]> {
+    const rows = await this.db.raw(
+      `SELECT user_id FROM "a_FilterUsersWithAppAccess"($1, $2::jsonb)`,
+      [appKey, JSON.stringify(userIds)],
+    );
+    return rows.map((r) => String(r.user_id));
+  }
 }

@@ -52,6 +52,7 @@ unwrap 3 `OUT` này thống nhất.
 | `a_AdminListAppAccess(app_id)` | 0005 | JOIN ra tên/chức vụ người đã được cấp |
 | `a_AdminSetAppAccess(app_id, user_ids jsonb, lu_user_id)` | 0005 | **Thay toàn bộ** tập quyền (`DELETE` rồi `INSERT` lại), không cộng/trừ từng dòng |
 | `a_AdminListUsers()` | 0005 | User active cho ô chọn multi-select |
+| `a_FilterUsersWithAppAccess(app_key, user_ids jsonb)` — **FUNCTION**, trả `TABLE(user_id)` | 0009 | Lọc 1 tập user, giữ lại người `a_UserHasAppAccess(user_id, app_key)` = true (chỉ bọc lại hàm đó, không lặp logic). Gọi qua `SELECT ... FROM`, không `CALL`. Dùng ở route nội bộ `POST /internal/app-access/filter` (api-task lọc màn Phân quyền công trình theo app `task`) |
 
 ## Bảng dùng chung (đọc/ghi qua proc có sẵn hoặc SELECT trực tiếp, không sở hữu — thuộc `api-core`)
 

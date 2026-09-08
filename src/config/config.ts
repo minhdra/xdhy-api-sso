@@ -69,4 +69,10 @@ export const config = {
     max: env.int('RATE_LIMIT_MAX', 300),
   },
   bodyLimit: env('BODY_LIMIT', '1mb'),
+  // Secret dùng chung cho route nội bộ /internal/* (middlewares/internalAuth.ts).
+  // api-task-management gọi sang để hỏi quyền app - PHẢI khớp
+  // SSO_INTERNAL_SECRET bên api-task.
+  internal: {
+    secret: requireEnv('INTERNAL_SECRET'),
+  },
 };

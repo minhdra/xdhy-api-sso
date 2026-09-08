@@ -13,6 +13,8 @@ Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng,
 | 0005 | `0005_app_registry.sql` | Bảng `a_app`/`a_app_access` (phân quyền ứng dụng theo người) + proc quản trị, seed 4 app (`finance`/`task`/`chat`/`meeting`). |
 | 0006 | `0006_app_access_check.sql` | Hàm `a_UserHasAppAccess` — chặn thật ở `GET /me?app=`, không chỉ ẩn/hiện UI. |
 | 0007 | `0007_seed_app_access_finance_task.sql` | Seed `a_app_access` cho **mọi user active hiện có** × app `finance`+`task` — bắt buộc trước khi `build-web`/`task-web` bật gửi `?app=` thật (07/09/2026), tránh khoá nhầm cả công ty lúc deploy. |
+| 0008 | `0008_admin_users_avatar.sql` | Thêm cột `avatar` vào `a_AdminListUsers` / `a_AdminListAppAccess` — màn "Phân quyền truy cập app" (`sso-web`) hiện ảnh thật thay vì màu nền hash. |
+| 0009 | `0009_internal_app_access_filter.sql` | Hàm `a_FilterUsersWithAppAccess(app_key, user_ids jsonb)` — bọc `a_UserHasAppAccess` cho cả tập. Dùng ở route nội bộ `POST /internal/app-access/filter` (api-task lọc màn Phân quyền công trình theo quyền app `task`, xem `api-task-management/docs/phan_quyen_giam_sat_app_gate.md`). |
 
 Bản sửa kiểm tra phiên bị thu hồi ngày 06/09/2026 chỉ thay đổi logic API/JWT và dùng các cột đã có (`session_id`, `user_id`, `revoked_at`, `expires_at`), vì vậy không phát sinh migration SQL mới.
 

@@ -9,6 +9,8 @@ import helmet from 'helmet';
 import { config } from './config/config';
 import { getJwk } from './config/jwt';
 import { errorHandler } from './errors/errorHandler';
+import { requireInternalSecret } from './middlewares/internalAuth';
+import internalRouter from './routes/internalRouter';
 import router from './routes';
 
 const app = express();
@@ -49,6 +51,11 @@ app.get('/.well-known/jwks.json', (_req: Request, res: Response) => {
 // Ảnh đại diện user upload (multer ghi vào uploads/avatars/). Gateway rewrite
 // /api/sso/uploads/* -> /api-sso/uploads/*. Không cần auth để xem ảnh.
 app.use('/api-sso/uploads', express.static('uploads'));
+
+// Route nội bộ server-to-server (api-task-management gọi sang). Đặt NGOÀI
+// '/api-sso' - gateway chỉ rewrite /api/sso/* -> /api-sso/* nên '/internal/*'
+// không lộ ra ngoài qua gateway (giống api-task-management/src/app.ts).
+app.use('/internal', requireInternalSecret, internalRouter);
 
 // api-sso giờ CHỈ là API - giao diện login đã tách sang project riêng
 // (sso-web), phục vụ qua gateway. api-sso không tự mở cổng ra internet nữa

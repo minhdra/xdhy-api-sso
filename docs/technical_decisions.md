@@ -111,6 +111,21 @@ lực ngay lập tức (không đợi access token hết hạn/refresh), cùng t
 hơn) và "coi như không có quyền" (an toàn hơn) — chọn vế sau, vì gõ sai tên app_key (lỗi đánh máy khi
 tích hợp) không được phép vô tình tắt luôn lớp bảo vệ.
 
+**Mở rộng (09/09/2026) — route nội bộ `/internal/app-access/filter` cho phép service khác lọc theo
+quyền app.** `api-task-management` cần: danh sách thêm người ở màn Phân quyền công trình chỉ gồm người
+có quyền app `task` (DB `task_management` tách khỏi `build_management` nên không JOIN được `a_app_access`
+trực tiếp). **Chọn HTTP nội bộ lúc đọc** (cache 60s phía client, fail-closed) thay vì (a) đồng bộ
+`a_app_access` sang `task_management` — thêm hạ tầng sync producer ở api-sso vốn chưa từng đẩy gì đi,
+eventual consistency; hay (b) dblink cross-DB — nhúng credential vào SQL, coupling schema. **Endpoint
+batch** `{ app_key, user_ids[] }` → `{ allowed_user_ids[] }` thay vì N lần gọi `a_UserHasAppAccess`:
+1 round-trip, và giữ nguyên tắc "admin bypass + fail-closed" nằm trong DB (`a_FilterUsersWithAppAccess`
+chỉ bọc lại `a_UserHasAppAccess`, không lặp logic ở TS). **Mount `/internal` ngoài `/api-sso`** — gateway
+chỉ rewrite `/api/sso/*`, không có đường từ ngoài tới `/internal/*` (giống `api-task-management` với
+`/internal/sync`). **Internal secret thứ 2 trong hệ** (`INTERNAL_SECRET` ↔ `SSO_INTERNAL_SECRET` bên
+api-task; thứ nhất là `TASK_SYNC_SECRET` cho api-core → api-task): cùng mô hình 1 secret tĩnh qua header,
+defense-in-depth cộng thêm lên network isolation. Chi tiết:
+[`../../api-task-management/docs/phan_quyen_giam_sat_app_gate.md`](../../api-task-management/docs/phan_quyen_giam_sat_app_gate.md).
+
 **Đã bật thật (07/09/2026):** sau khi tách `task-web` khỏi `build-web` (xem
 `api-task-management/docs/task_management_split_plan.md`), cả 2 app đều gọi `/me` kèm `?app=` —
 `build-web` dùng `app_key="finance"` (còn lại administration + tài chính sau khi tách task, không có
