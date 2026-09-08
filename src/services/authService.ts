@@ -184,9 +184,15 @@ export class AuthService {
 
     const rawToken = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
 
-    await this.passwordResetRepository.create({ tokenHash, userId: user.user_id, expiresAt });
+    // created_at và expires_at đều do PostgreSQL tính từ cùng một `now()`.
+    // Không truyền Date từ Node vào cột timestamp vì timezone của process và
+    // session DB có thể khác nhau, làm token vừa tạo đã bị coi là hết hạn.
+    await this.passwordResetRepository.create({
+      tokenHash,
+      userId: user.user_id,
+      ttlMs: RESET_TOKEN_TTL_MS,
+    });
 
     const resetLink = `${config.frontendResetUrl}?token=${rawToken}`;
     const emailBody = `
@@ -215,9 +221,14 @@ export class AuthService {
 
     this.mailTransporter().sendMail(
       {
-        from: config.systemEmail.email,
+        from: `XDHY <${config.systemEmail.email}>`,
         to: email,
         subject: 'Đặt lại mật khẩu — XDHY',
+        text:
+          `Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản XDHY ` +
+          `(${user.user_name}).\n\nĐặt lại mật khẩu tại: ${resetLink}\n\n` +
+          `Link có hiệu lực trong 1 giờ. Nếu bạn không yêu cầu đổi mật khẩu, ` +
+          `hãy bỏ qua email này.`,
         html: emailBody,
       },
       (err) => {

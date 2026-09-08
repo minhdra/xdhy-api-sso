@@ -12,10 +12,11 @@ export interface ValidResetToken {
 export class PasswordResetRepository {
   constructor(private db: Database) {}
 
-  async create(params: { tokenHash: string; userId: string; expiresAt: Date }): Promise<void> {
+  async create(params: { tokenHash: string; userId: string; ttlMs: number }): Promise<void> {
     await this.db.raw(
-      `INSERT INTO a_password_reset_token (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-      [params.tokenHash, params.userId, params.expiresAt],
+      `INSERT INTO a_password_reset_token (token_hash, user_id, expires_at)
+       VALUES ($1, $2, now() + ($3 * interval '1 millisecond'))`,
+      [params.tokenHash, params.userId, params.ttlMs],
     );
   }
 
