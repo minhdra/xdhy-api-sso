@@ -29,8 +29,8 @@ discovery) — service khác verify JWT bằng key ở đây (package `jwks-rsa`
 | Method | Path | Body | Việc gì |
 | --- | --- | --- | --- |
 | GET | `/account/profile` | — | Hồ sơ đầy đủ: cá nhân + `position_name`/`department_name`/`branch_name` + `is_admin` |
-| PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type` |
-| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. Trả `{ avatar: "/api-sso/uploads/avatars/..." }` |
+| PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type`. Sau khi ghi `build_management` → fan-out sang `task_management` (`POST {TASK_SYNC_URL}/internal/sync/users/profile`) + module chat (`POST {CHAT_SYNC_URL}/internal/sync/users`), non-blocking (`integrations/taskSyncClient.ts` + `chatSyncClient.ts`, bỏ qua nếu thiếu secret) |
+| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. Trả `{ avatar: "/api-sso/uploads/avatars/..." }`. Cũng fan-out task + chat như `PUT /account/profile` |
 | POST | `/account/change-password` | `{ oldPassword, newPassword }` | Verify mật khẩu cũ bằng bcrypt trước khi đổi |
 | GET | `/account/sessions` | — | Danh sách phiên đang hoạt động, cờ `current` cho phiên gọi request này |
 | POST | `/account/sessions/revoke` | `{ session_id }` | Không thu hồi được **chính phiên hiện tại** (dùng `/logout`) |

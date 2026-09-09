@@ -2,9 +2,13 @@ import { injectable } from 'tsyringe';
 
 import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { AppError } from '../errors/AppError';
+import { upsertUserToChat } from '../integrations/chatSyncClient';
+import { syncProfileToTask } from '../integrations/taskSyncClient';
+import { AppRepository } from '../repositories/appRepository';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, verifyPassword } from '../utilities/password';
+import { splitFullName } from '../utilities/splitFullName';
 
 export interface UpdateProfilePatch {
   full_name: string;
@@ -19,7 +23,51 @@ export class AccountService {
   constructor(
     private userRepository: UserRepository,
     private sessionRepository: SessionRepository,
+    private appRepository: AppRepository,
   ) {}
+
+  // Sau khi user tự sửa hồ sơ/avatar ở sso-web (ghi vào build_management),
+  // đẩy sang task_management (bản sao user_profiles) + module chat. Không
+  // await/không throw - lỗi sync không được chặn phản hồi sửa hồ sơ.
+  private async fanOutProfile(userId: string): Promise<void> {
+    try {
+      await this.fanOutProfileInner(userId);
+    } catch (error) {
+      console.warn('[profileSync] chuẩn bị payload thất bại:', (error as Error).message);
+    }
+  }
+
+  private async fanOutProfileInner(userId: string): Promise<void> {
+    const p = await this.userRepository.getAccountProfile(userId);
+    if (!p) return;
+    // avatar: giữ nguyên giá trị THÔ trong DB (task-web/chat tự dựng URL,
+    // giống dữ liệu api-core đẩy sang).
+    void syncProfileToTask({
+      user_id: userId,
+      full_name: p.full_name ?? null,
+      avatar: p.avatar ?? null,
+      gender: p.gender ?? null,
+      date_of_birth: p.date_of_birth ?? null,
+      email: p.email ?? null,
+      phone_number: p.phone_number ?? null,
+      lu_user_id: userId,
+    });
+    const { first_name, middle_name, last_name } = splitFullName(p.full_name);
+    const isAdmin = await this.appRepository.isAdmin(userId);
+    void upsertUserToChat({
+      user_id: userId,
+      user_name: p.user_name ?? null,
+      first_name: first_name || last_name || p.user_name || null,
+      middle_name: middle_name || null,
+      last_name: last_name || p.user_name || null,
+      email: p.email ?? null,
+      phone_number: p.phone_number ?? '',
+      avatar: p.avatar ?? null,
+      role: isAdmin ? 'admin' : 'user',
+      active_flag: 1,
+      created_by_user_id: userId,
+    });
+  }
 
   // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
   // để hiển thị, dù user không sửa được các field đó).
@@ -42,11 +90,13 @@ export class AccountService {
       date_of_birth: patch.date_of_birth,
       lu_user_id: userId,
     });
+    void this.fanOutProfile(userId);
   }
 
   // Trả về URL avatar mới để FE cập nhật ngay.
   async setAvatar(userId: string, avatarUrl: string): Promise<string> {
     await this.userRepository.setAvatar(userId, avatarUrl, userId);
+    void this.fanOutProfile(userId);
     return avatarUrl;
   }
 
