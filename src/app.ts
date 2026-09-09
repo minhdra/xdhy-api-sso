@@ -35,6 +35,16 @@ app.use(
     limit: config.rateLimit.max,
     standardHeaders: true,
     legacyHeaders: false,
+    // Bỏ đếm cho các route hạ tầng gọi server-to-server: api-gateway gọi
+    // /session/validate MỖI request có auth của MỌI service -> tất cả chung
+    // 1 key (IP gateway) -> ăn hết quota, user thật bị 429 oan. Tương tự
+    // /internal/* (api-task gọi), JWKS, ảnh tĩnh. Limiter chỉ nên chặn abuse
+    // từ trình duyệt (login, quên mật khẩu, /me...).
+    skip: (req) =>
+      req.path === '/api-sso/session/validate' ||
+      req.path.startsWith('/internal/') ||
+      req.path.startsWith('/api-sso/uploads/') ||
+      req.path === '/.well-known/jwks.json',
   }),
 );
 
