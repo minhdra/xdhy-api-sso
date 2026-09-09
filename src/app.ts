@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import helmet from 'helmet';
 
 import { config } from './config/config';
@@ -29,12 +29,28 @@ app.use(
 
 app.use(cookieParser());
 
+// IIS/ARR ở deploy thật có thể ghi X-Forwarded-For dạng "ip:port" (đã gặp
+// req.ip = "117.7.137.54:64477") khiến express-rate-limit v8 ném
+// ERR_ERL_INVALID_IP_ADDRESS. Bóc phần ":port" trước khi tạo key, rồi đưa qua
+// ipKeyGenerator để chuẩn hoá IPv6 (gộp /64) cho an toàn.
+const stripPort = (ip: string): string => {
+  if (!ip) return ip;
+  if (ip.startsWith('[')) {
+    const end = ip.indexOf(']');
+    return end > 0 ? ip.slice(1, end) : ip;
+  }
+  const parts = ip.split(':');
+  return parts.length === 2 ? parts[0] : ip;
+};
+const clientIpKey = (req: Request): string => ipKeyGenerator(stripPort(req.ip ?? ''));
+
 app.use(
   rateLimit({
     windowMs: config.rateLimit.windowMs,
     limit: config.rateLimit.max,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: clientIpKey,
     // Bỏ đếm cho các route hạ tầng gọi server-to-server: api-gateway gọi
     // /session/validate MỖI request có auth của MỌI service -> tất cả chung
     // 1 key (IP gateway) -> ăn hết quota, user thật bị 429 oan. Tương tự
