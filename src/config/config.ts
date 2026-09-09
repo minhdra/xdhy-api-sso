@@ -75,16 +75,4 @@ export const config = {
   internal: {
     secret: requireEnv('INTERNAL_SECRET'),
   },
-  // Đồng bộ hồ sơ / avatar user tự sửa ở sso-web sang task + chat. KHÔNG
-  // requireEnv - thiếu secret thì client tự bỏ qua (không chặn sửa hồ sơ).
-  // TASK_SYNC_SECRET phải khớp giá trị cùng tên bên api-task-management.
-  // CHAT_SYNC_SECRET phải khớp giá trị chat kỳ vọng (giống api-core).
-  taskSync: {
-    baseUrl: env('TASK_SYNC_URL', 'http://api-task:6002'),
-    secret: env('TASK_SYNC_SECRET', ''),
-  },
-  chatSync: {
-    baseUrl: env('CHAT_SYNC_URL', 'http://api-chat:6004'),
-    secret: env('CHAT_SYNC_SECRET', ''),
-  },
 };
