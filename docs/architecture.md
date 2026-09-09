@@ -24,7 +24,7 @@ sso-web (đăng nhập, quản lý tài khoản)   build-web (app chính)
 Giao diện đăng nhập/quản lý tài khoản nằm ở [`sso-web`](../../sso-web) (frontend độc lập, port riêng),
 gọi API same-origin qua nginx proxy của chính nó sang `api-gateway` (giống `build-web`/`task-web` —
 xem `sso-web/docs/architecture.md`). Không tự publish port ra internet trong production (chỉ
-`expose`, đúng nguyên tắc "chỉ frontend + gateway mở cổng" — xem `docker-compose.sso-sandbox.yml`).
+`expose`, đúng nguyên tắc "chỉ frontend + gateway mở cổng" — xem `docker-compose.real.yml`).
 
 `api-sso` tách ra từ `api-core`: `login/refresh/logout/me/forgot-password` từng nằm trong
 `api-core/src/controllers/userController.ts`, giờ route đó trả `410 Gone` (xem
@@ -124,4 +124,4 @@ nghĩa (code đã tắt: `role_group.indexOf('sa,')`). Tính lại **mỗi reque
 Multi-stage: build stage cần `python3 make g++` (biên dịch native binding cho `bcrypt` — alpine không
 có prebuilt binary sẵn), production stage cài lại `pnpm install --prod` rồi chạy thẳng `node
 dist/index.js` (không `nodemon`/`ts-node`). `EXPOSE 6005`, chỉ `expose` trong compose (không publish ra
-host) trừ khi chạy sandbox test trực tiếp.
+host) trừ khi soi trực tiếp qua port publish.

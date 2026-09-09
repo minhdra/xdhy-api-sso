@@ -2,7 +2,7 @@
   "name": "api-sso",
   "version": "0.1.0",
   "private": true,
-  "description": "Sandbox thu nghiem SSO - tach login/refresh/logout/me khoi api-core",
+  "description": "SSO service - tach login/refresh/logout/me/account khoi api-core",
   "main": "dist/index.js",
   "scripts": {
     "start": "cross-env NODE_OPTIONS=--max-http-header-size=10485760 nodemon --exec ts-node src/index.ts",

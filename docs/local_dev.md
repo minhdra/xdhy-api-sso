@@ -48,14 +48,10 @@ là hành vi cố ý (không cho vào giao diện khi chưa xác định đượ
 
 ## 4. Checklist `.env` trước khi chạy — đây là chỗ hay vướng nhất
 
-- [ ] **`DB_HOST`/`DB_PORT`/`DB_NAME` của `api-core`, `api-sso`, `api-task-management` phải trỏ CÙNG 1
-      database.** Đây không phải lý thuyết — `.env` mặc định của `api-sso` có lúc trỏ
-      `localhost:15432` (DB sandbox Docker) trong khi `api-core`/`api-task-management` trỏ thẳng
-      `112.78.1.3` (DB thật) — nếu chạy nguyên trạng, đăng nhập qua `api-sso` sẽ tạo phiên cho user chỉ
-      tồn tại ở DB sandbox, còn `api-core` (đọc DB thật) không biết user đó là ai. Sửa lại cho khớp
-      trước khi chạy — hoặc cả 3 cùng trỏ `112.78.1.3` (dữ liệu thật), hoặc cả 3 cùng trỏ 1 Postgres
-      sandbox (`docker compose -f docker-compose.sso-sandbox.yml up -d sandbox-db sandbox-restore`
-      rồi trỏ `DB_HOST=localhost`/`DB_PORT=15432` cho cả 3).
+- [ ] **`DB_HOST`/`DB_PORT`/`DB_NAME` của `api-core`, `api-sso` phải trỏ CÙNG 1 database
+      (`build_management`); `api-task-management` trỏ `task_management` cùng server.** Nếu `api-sso` trỏ
+      DB khác `api-core`, đăng nhập qua `api-sso` sẽ tạo phiên cho user mà `api-core` không biết là ai.
+      Mặc định cả 3 đều trỏ `112.78.1.3` (DB thật) — kiểm tra khớp trước khi chạy.
 - [ ] `api-gateway/.env`: `URL_CORE`/`URL_SSO`/`URL_TASK_MANAGEMENT`/`JWT_JWKS_URI` trỏ đúng port ở
       mục 1 (mặc định trong `.env.example` đã đúng, chỉ cần copy).
 - [ ] `api-gateway/.env`: `CORS_ORIGIN` = origin `build-web` (`http://localhost:3010`). `task-web`/
@@ -74,7 +70,7 @@ là hành vi cố ý (không cho vào giao diện khi chưa xác định đượ
 thống, `role_code='sa'`, luôn qua) sẽ nhận `403`, hiện đúng trang "Không có quyền truy cập ứng dụng
 này" (không phải bug, xem [`technical_decisions.md`](./technical_decisions.md)). Cấp quyền cho tài
 khoản test qua trang quản trị app trong `sso-web` (`/account` → tab quản lý ứng dụng, cần đăng nhập
-bằng tài khoản có vai trò quản trị), hoặc thẳng bằng SQL nếu đang test trên DB sandbox — xem
+bằng tài khoản có vai trò quản trị), hoặc thẳng bằng SQL — xem
 [`../db/migrations/0007_seed_app_access_finance_task.sql`](../db/migrations/0007_seed_app_access_finance_task.sql)
 làm mẫu.
 

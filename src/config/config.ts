@@ -35,10 +35,10 @@ export const config = {
     // kid (key id) gắn vào header token + JWKS - cho phép xoay khoá sau này
     // (thêm khoá mới vào JWKS, phát hành token với kid mới, khoá cũ vẫn verify
     // được tới khi hết hạn) mà không cần đổi code, chỉ cần đổi giá trị này.
-    kid: env('JWT_KID', 'sandbox-1'),
+    kid: env('JWT_KID', 'sso-1'),
     // Mặc định khi remember=false (giữ đúng hạn hiện có của api-core).
     // remember=true dùng thẳng hằng số 1d/30d ở controllers/authController.ts,
-    // không cần thêm biến môi trường riêng cho bản sandbox này.
+    // không cần thêm biến môi trường riêng.
     accessExpiresIn: env('JWT_ACCESS_EXPIRES_IN', '15m'),
     refreshExpiresIn: env('JWT_REFRESH_EXPIRES_IN', '7d'),
   },

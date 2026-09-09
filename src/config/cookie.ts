@@ -13,7 +13,7 @@ const baseCookieOptions: CookieOptions = {
   secure: config.cookie.secure ? config.cookie.secure === 'true' : config.env === 'production',
   sameSite: 'lax',
   path: '/',
-  // Domain cha dùng chung (vd ".sso-sandbox.orb.local") - cho phép trang login
+  // Domain cha dùng chung (vd ".xdhy.vn") - cho phép trang login
   // chạy trên origin của chính api-sso set cookie rồi redirect về app khác
   // (build-web) vẫn đọc được cookie đó. Không set -> cookie host-only, đúng
   // luồng hiện tại (build-web tự proxy /api same-origin qua nginx).

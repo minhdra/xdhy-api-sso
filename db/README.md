@@ -1,6 +1,6 @@
 # Migration database của API SSO
 
-Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng, index và stored procedure của module SSO. Không sửa trực tiếp database sandbox hoặc production mà không tạo migration tương ứng tại đây.
+Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng, index và stored procedure của module SSO. Không sửa trực tiếp database production mà không tạo migration tương ứng tại đây.
 
 ## Danh sách migration
 
@@ -25,7 +25,7 @@ Bản sửa kiểm tra phiên bị thu hồi ngày 06/09/2026 chỉ thay đổi 
 3. Đầu file phải ghi mục đích, thứ tự áp dụng và câu lệnh rollback tham khảo.
 4. Migration phải chạy lại an toàn khi có thể: dùng `IF NOT EXISTS`, `CREATE OR REPLACE` hoặc guard tương đương.
 5. Thay đổi procedure hiện hữu vẫn phải tạo migration mới bằng `CREATE OR REPLACE PROCEDURE`; không sửa ngược file `0004` sau khi đã phát hành production.
-6. Mọi migration phải được chạy thử trên sandbox qua `sandbox-restore` trước khi áp dụng lên database thật.
+6. Mọi migration nên chạy thử trên bản clone/staging trước khi áp dụng lên database thật.
 
 ## Áp dụng lên database thật
 

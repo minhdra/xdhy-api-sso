@@ -6,9 +6,8 @@ người dùng — `system_users`/`user_profiles`/`roles`... vẫn do `api-core`
 nghiệp vụ, `api-sso` chỉ đọc lại qua stored procedure có sẵn (không sửa proc gốc).
 
 Migration nằm ở [`db/migrations/`](../db/migrations) (đánh số `NNNN_*.sql`, idempotent — `CREATE TABLE
-IF NOT EXISTS`/`CREATE OR REPLACE PROCEDURE`), chạy tự động lúc dựng sandbox (`sandbox-restore.sh` loop
-`for f in /migrations/*.sql`) và chạy tay theo đúng thứ tự lên DB thật sau khi nghiệm thu — xem quy tắc
-đầy đủ ở [`db/README.md`](../db/README.md).
+IF NOT EXISTS`/`CREATE OR REPLACE PROCEDURE`), chạy tay theo đúng thứ tự lên `build_management` — xem
+quy tắc đầy đủ ở [`db/README.md`](../db/README.md).
 
 ## Bảng repo này sở hữu (tiền tố `a_`, module auth/SSO — giống `t_` của task)
 
@@ -75,9 +74,9 @@ Không có ORM/ORM migration tool đọc schema từ code (giống `api-core`/`a
 đã có sẵn trong `node_modules` để query trực tiếp khi cần xác minh:
 
 ```bash
-docker exec api-sso-sandbox node -e "
+docker exec api-sso node -e "
 const {Client}=require('pg');
-const c=new Client({host:'sandbox-db',port:5432,user:'postgres',password:'sandbox',database:'build_management'});
+const c=new Client({host:process.env.DB_HOST,port:+process.env.DB_PORT,user:process.env.DB_USERNAME,password:process.env.DB_PASSWORD,database:process.env.DB_NAME});
 c.connect().then(()=>c.query('SELECT ...')).then(r=>console.log(r.rows)).then(()=>c.end());
 "
 ```

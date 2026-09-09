@@ -71,8 +71,8 @@ openssl genrsa -out keys/private.pem 2048
 openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 ```
 
-Đừng commit thư mục `keys/` — đã có sẵn trong `.gitignore`. Mỗi môi trường (dev, sandbox, production)
-nên có cặp khoá riêng.
+Đừng commit thư mục `keys/` — đã có sẵn trong `.gitignore`. Mỗi môi trường (dev, production) nên có
+cặp khoá riêng.
 
 **Áp migration** cho các bảng/proc `a_*` (xem quy tắc đầy đủ ở [`db/README.md`](./db/README.md)):
 
@@ -107,10 +107,10 @@ Sau khi chạy dev, mở `http://localhost:6005/docs` (hoặc qua gateway:
 
 ## Docker
 
-Không có `docker-compose.yml` riêng cho service này — chạy cùng cụm sandbox ở gốc repo:
+Không có `docker-compose.yml` riêng cho service này — chạy cùng cụm ở gốc repo:
 
 ```bash
-docker compose -f ../docker-compose.sso-sandbox.yml up -d --build api-sso-sandbox
+docker compose -f ../docker-compose.real.yml up -d --build api-sso
 ```
 
 ## Tài liệu dự án

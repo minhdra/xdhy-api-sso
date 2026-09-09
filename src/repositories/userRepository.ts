@@ -5,7 +5,7 @@ import { verifyPassword } from '../utilities/password';
 
 // Copy nguyên văn phần liên quan auth từ api-core/src/repositories/userRepository.ts
 // - đã bỏ các method quản trị user (create/update/delete/search/lock/reset-password)
-// vì ngoài phạm vi milestone sandbox này (chỉ login/refresh/logout/me).
+// vì ngoài phạm vi service này (auth + account self-service).
 @injectable()
 export class UserRepository {
   constructor(private db: Database) {}
