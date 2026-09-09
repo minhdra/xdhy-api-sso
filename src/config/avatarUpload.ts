@@ -35,7 +35,7 @@ export const avatarUpload = multer({ storage, fileFilter, limits: { fileSize: MA
 );
 
 // Đường dẫn public để lưu vào user_profiles.avatar + trả về FE. Static serve ở
-// app.ts (/api-sso/uploads), gateway rewrite /api/sso/uploads/* -> /api-sso/uploads/*.
+// app.ts (/api-sso/uploads), gateway rewrite /api/api-sso/uploads/* -> /api-sso/uploads/*.
 export const toAvatarUrl = (diskPath: string): string =>
   '/api-sso/' + diskPath.replace(/\\/g, '/');
 
@@ -48,8 +48,8 @@ export const toAvatarUrl = (diskPath: string): string =>
 // Trả về URL TƯƠNG ĐỐI THEO ORIGIN mà trình duyệt tải được (không hard-code
 // domain - chạy đúng trên xdhy.vn, IP, orb.local...). Từng segment path được
 // encode để tên file có ký tự đặc biệt không vỡ URL.
-// Gateway: /api/sso/uploads/*  -> public (ssoApiPipeline, không verify token)
-//          /api/api-core/uploads/* -> public (coreUploadsPipeline, thêm 09/09/2026)
+// Gateway: /api/api-sso/uploads/*  -> public (ssoApiPipeline, không verify token)
+//          /api/api-core/uploads/*  -> public (coreUploadsPipeline, thêm 09/09/2026)
 export const toPublicAvatarUrl = (raw: string | null | undefined): string | null => {
   if (!raw) return null;
   if (/^https?:\/\//i.test(raw)) return raw;
@@ -58,8 +58,9 @@ export const toPublicAvatarUrl = (raw: string | null | undefined): string | null
   const clean = raw.replace(/\\/g, '/').replace(/^\/+/, '');
   const encoded = clean.split('/').map(encodeURIComponent).join('/');
 
+  // "api-sso/uploads/x" -> "/api/api-sso/uploads/x"; "uploads\yyyy\x" -> "/api/api-core/uploads/x"
   if (encoded.startsWith('api-sso/')) {
-    return `/api/sso/${encoded.slice('api-sso/'.length)}`;
+    return `/api/${encoded}`;
   }
   return `/api/api-core/${encoded}`;
 };

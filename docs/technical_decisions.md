@@ -120,7 +120,7 @@ eventual consistency; hay (b) dblink cross-DB — nhúng credential vào SQL, co
 batch** `{ app_key, user_ids[] }` → `{ allowed_user_ids[] }` thay vì N lần gọi `a_UserHasAppAccess`:
 1 round-trip, và giữ nguyên tắc "admin bypass + fail-closed" nằm trong DB (`a_FilterUsersWithAppAccess`
 chỉ bọc lại `a_UserHasAppAccess`, không lặp logic ở TS). **Mount `/internal` ngoài `/api-sso`** — gateway
-chỉ rewrite `/api/sso/*`, không có đường từ ngoài tới `/internal/*` (giống `api-task-management` với
+chỉ rewrite `/api/api-sso/*`, không có đường từ ngoài tới `/internal/*` (giống `api-task-management` với
 `/internal/sync`). **Internal secret thứ 2 trong hệ** (`INTERNAL_SECRET` ↔ `SSO_INTERNAL_SECRET` bên
 api-task; thứ nhất là `TASK_SYNC_SECRET` cho api-core → api-task): cùng mô hình 1 secret tĩnh qua header,
 defense-in-depth cộng thêm lên network isolation. Chi tiết:
@@ -152,9 +152,9 @@ upload) và `uploads\yyyy-mm-dd\ten file.png` (avatar cũ do api-core lưu, back
 **Sửa:**
 1. **api-gateway**: thêm `coreUploadsPipeline` cho `/api/api-core/uploads/*` — KHÔNG verify token
    (avatar không phải dữ liệu nhạy cảm; api-core cũng serve static không auth ở tầng service). Khai
-   TRƯỚC `api_core` để bắt trước. Giống `/api/sso/uploads/*` vốn đã public.
+   TRƯỚC `api_core` để bắt trước. Giống `/api/api-sso/uploads/*` vốn đã public.
 2. **api-sso**: `toPublicAvatarUrl()` (`config/avatarUpload.ts`) chuẩn hoá về URL **tương đối theo
-   origin** (`/api/sso/uploads/...` hoặc `/api/api-core/uploads/...`, encode từng segment) — không
+   origin** (`/api/api-sso/uploads/...` hoặc `/api/api-core/uploads/...`, encode từng segment) — không
    hard-code domain nên chạy đúng trên mọi môi trường. Dùng ở `authService.me()` +
    `accountService.getProfile()`.
 3. **FE**: `avatarSrc()` / `resolveUploadUrl()` thành idempotent (path bắt đầu `/api/` hoặc `http` →

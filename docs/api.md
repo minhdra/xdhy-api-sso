@@ -4,7 +4,7 @@ Nguồn sự thật chính xác nhất: Swagger sinh trực tiếp từ code —
 `GET /api/docs/api-sso/`, mở công khai, không cần đăng nhập). File này là bản tóm tắt để tra nhanh; nếu
 lệch với Swagger, tin Swagger.
 
-Mọi endpoint dưới đây qua `api-gateway` ở tiền tố `/api/sso/*` → rewrite `/api-sso/*`
+Mọi endpoint dưới đây qua `api-gateway` ở tiền tố `/api/api-sso/*` → rewrite `/api-sso/*`
 (`api-gateway/config*/gateway.config.yml`, pipeline `ssoApiPipeline`/`ssoDocsPipeline`). `sso-web` chỉ
 gọi qua tiền tố này (`sso-web/src/api.ts`), không gọi thẳng `api-sso`. 6 đường tắt cũ
 (`/api/login`, `/api/refresh`, `/api/logout`, `/api/me`, `/api/forgot-password`,
@@ -61,7 +61,7 @@ tên vô tình tắt luôn kiểm tra.
 
 ## Nội bộ (`/internal/*`) — server-to-server, KHÔNG qua gateway, KHÔNG JWT
 
-Mount ở app level (`app.ts`), **ngoài** router `/api-sso` — gateway chỉ rewrite `/api/sso/*` →
+Mount ở app level (`app.ts`), **ngoài** router `/api-sso` — gateway chỉ rewrite `/api/api-sso/*` →
 `/api-sso/*` nên `/internal/*` không lộ ra ngoài. Xác thực bằng header `X-Internal-Secret`
 (`middlewares/internalAuth.ts`, `timingSafeEqual`), giá trị `INTERNAL_SECRET`. Không lên Swagger.
 

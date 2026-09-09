@@ -7,7 +7,7 @@ import { filterAppAccessSchema } from '../schemas/internal.schema';
 
 // Route nội bộ - api-task-management gọi container-tới-container để hỏi quyền
 // app của 1 tập user. KHÔNG mount dưới '/api-sso' (đó là phần gateway rewrite
-// /api/sso/* -> /api-sso/* cho FE) - mount ở app level '/internal', bảo vệ
+// /api/api-sso/* -> /api-sso/* cho FE) - mount ở app level '/internal', bảo vệ
 // bằng requireInternalSecret (app.ts), KHÔNG requireAuth. KHÔNG lên Swagger.
 const internalRouter = Router();
 const controller = container.resolve(InternalController);

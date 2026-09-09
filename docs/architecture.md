@@ -8,7 +8,7 @@ sso-web (đăng nhập, quản lý tài khoản)   build-web (app chính)
               └──────────────┬─────────────────────┘
                               ▼
                        api-gateway (:6688)
-                    rewrite /api/sso/* → /api-sso/*
+                    rewrite /api/api-sso/* → /api-sso/*
                     verify JWT qua JWKS (jwks-rsa)
                               │
                               ▼

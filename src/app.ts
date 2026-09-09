@@ -59,11 +59,11 @@ app.get('/.well-known/jwks.json', (_req: Request, res: Response) => {
 });
 
 // Ảnh đại diện user upload (multer ghi vào uploads/avatars/). Gateway rewrite
-// /api/sso/uploads/* -> /api-sso/uploads/*. Không cần auth để xem ảnh.
+// /api/api-sso/uploads/* -> /api-sso/uploads/*. Không cần auth để xem ảnh.
 app.use('/api-sso/uploads', express.static('uploads'));
 
 // Route nội bộ server-to-server (api-task-management gọi sang). Đặt NGOÀI
-// '/api-sso' - gateway chỉ rewrite /api/sso/* -> /api-sso/* nên '/internal/*'
+// '/api-sso' - gateway chỉ rewrite /api/api-sso/* -> /api-sso/* nên '/internal/*'
 // không lộ ra ngoài qua gateway (giống api-task-management/src/app.ts).
 app.use('/internal', requireInternalSecret, internalRouter);
 
