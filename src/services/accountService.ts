@@ -2,6 +2,7 @@ import { injectable } from 'tsyringe';
 
 import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { AppError } from '../errors/AppError';
+import { resyncProfile } from '../integrations/coreClient';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, verifyPassword } from '../utilities/password';
@@ -32,6 +33,8 @@ export class AccountService {
 
   // Chỉ đụng vào các field hồ sơ tự phục vụ - proc a_UpdateSelfProfile không
   // chạm branch/department/position/type. Avatar có endpoint upload riêng.
+  // Sau khi ghi build_management -> báo api-core đồng bộ xuống task + chat
+  // (non-blocking, xem integrations/coreClient.ts).
   async updateProfile(userId: string, patch: UpdateProfilePatch): Promise<void> {
     await this.userRepository.updateSelfProfile({
       user_id: userId,
@@ -42,11 +45,13 @@ export class AccountService {
       date_of_birth: patch.date_of_birth,
       lu_user_id: userId,
     });
+    void resyncProfile(userId);
   }
 
   // Trả về URL avatar mới để FE cập nhật ngay.
   async setAvatar(userId: string, avatarUrl: string): Promise<string> {
     await this.userRepository.setAvatar(userId, avatarUrl, userId);
+    void resyncProfile(userId);
     return avatarUrl;
   }
 

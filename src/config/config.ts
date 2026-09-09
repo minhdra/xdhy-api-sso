@@ -75,4 +75,12 @@ export const config = {
   internal: {
     secret: requireEnv('INTERNAL_SECRET'),
   },
+  // Gọi api-core sau khi user tự sửa hồ sơ/avatar ở sso-web -> api-core lo
+  // đồng bộ xuống task + chat (api-core là nơi duy nhất giữ logic + secret
+  // sync đó). KHÔNG requireEnv - thiếu thì bỏ qua (không chặn sửa hồ sơ).
+  // CORE_INTERNAL_SECRET phải khớp giá trị cùng tên bên api-core.
+  coreInternal: {
+    baseUrl: env('CORE_INTERNAL_URL', 'http://api-core:6001'),
+    secret: env('CORE_INTERNAL_SECRET', ''),
+  },
 };

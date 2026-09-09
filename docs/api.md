@@ -29,8 +29,8 @@ discovery) — service khác verify JWT bằng key ở đây (package `jwks-rsa`
 | Method | Path | Body | Việc gì |
 | --- | --- | --- | --- |
 | GET | `/account/profile` | — | Hồ sơ đầy đủ: cá nhân + `position_name`/`department_name`/`branch_name` + `is_admin` |
-| PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type` |
-| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. Trả `{ avatar: "/api-sso/uploads/avatars/..." }` |
+| PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type`. Sau khi ghi `build_management` → gọi `POST {CORE_INTERNAL_URL}/internal/users/profile-resync` (non-blocking) để api-core đồng bộ xuống task + chat |
+| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. Trả `{ avatar: "/api-sso/uploads/avatars/..." }`. Cũng gọi profile-resync như trên |
 | POST | `/account/change-password` | `{ oldPassword, newPassword }` | Verify mật khẩu cũ bằng bcrypt trước khi đổi |
 | GET | `/account/sessions` | — | Danh sách phiên đang hoạt động, cờ `current` cho phiên gọi request này |
 | POST | `/account/sessions/revoke` | `{ session_id }` | Không thu hồi được **chính phiên hiện tại** (dùng `/logout`) |
