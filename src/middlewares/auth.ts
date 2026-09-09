@@ -37,6 +37,9 @@ export const requireAuth = async (
     }
     req.userId = decoded.user_id;
     req.sessionId = decoded.session_id;
+    // Ghi nhận "hoạt động lần cuối" - fire-and-forget, throttle 5' trong SQL
+    // nên mỗi request qua gateway (/session/validate) không thành 1 write.
+    void sessionRepository.touchSessionThrottled(decoded.session_id).catch(() => {});
     next();
   } catch (error) {
     next(error);

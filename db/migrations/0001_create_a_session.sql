@@ -8,6 +8,9 @@
 -- nghiem thu - xem plan "Duong len production").
 -- Rollback: DROP TABLE IF EXISTS a_session CASCADE;
 
+-- LƯU Ý: 4 cot gio duoi tao dang `timestamp` (khong tz). Migration 0010 doi
+-- sang `timestamptz` (db chay timezone Asia/Bangkok, cot naive lam lech gio
+-- hien thi "hoat dong lan cuoi"). Khong sua file nay - chay het 0001..0010.
 CREATE TABLE IF NOT EXISTS a_session (
   session_id    varchar(36)  PRIMARY KEY,
   user_id       varchar      NOT NULL REFERENCES system_users(user_id),

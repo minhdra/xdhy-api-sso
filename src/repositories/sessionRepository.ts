@@ -83,6 +83,17 @@ export class SessionRepository {
     ]);
   }
 
+  // "Hoạt động lần cuối" - gọi từ requireAuth (mọi request có access token,
+  // gồm cả /session/validate mà gateway gọi mỗi request). Throttle 5 phút
+  // NGAY TRONG SQL để không tạo 1 write cho mỗi lần validate.
+  async touchSessionThrottled(sessionId: string): Promise<void> {
+    await this.db.raw(
+      `UPDATE a_session SET last_seen_at = now()
+       WHERE session_id = $1 AND last_seen_at < now() - interval '5 minutes'`,
+      [sessionId],
+    );
+  }
+
   async isSessionActive(sessionId: string, userId: string): Promise<boolean> {
     const rows = await this.db.raw(
       `SELECT 1

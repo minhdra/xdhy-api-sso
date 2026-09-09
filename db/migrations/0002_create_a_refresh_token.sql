@@ -15,5 +15,6 @@ CREATE TABLE IF NOT EXISTS a_refresh_token (
   rotated_to   varchar(36),
   revoked_at   timestamp
 );
+-- LƯU Ý: cot gio doi sang timestamptz o migration 0010 (xem 0001 + 0010).
 
 CREATE INDEX IF NOT EXISTS idx_a_refresh_token_session_id ON a_refresh_token(session_id);

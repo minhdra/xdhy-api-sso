@@ -15,6 +15,7 @@ Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng,
 | 0007 | `0007_seed_app_access_finance_task.sql` | Seed `a_app_access` cho **mọi user active hiện có** × app `finance`+`task` — bắt buộc trước khi `build-web`/`task-web` bật gửi `?app=` thật (07/09/2026), tránh khoá nhầm cả công ty lúc deploy. |
 | 0008 | `0008_admin_users_avatar.sql` | Thêm cột `avatar` vào `a_AdminListUsers` / `a_AdminListAppAccess` — màn "Phân quyền truy cập app" (`sso-web`) hiện ảnh thật thay vì màu nền hash. |
 | 0009 | `0009_internal_app_access_filter.sql` | Hàm `a_FilterUsersWithAppAccess(app_key, user_ids jsonb)` — bọc `a_UserHasAppAccess` cho cả tập. Dùng ở route nội bộ `POST /internal/app-access/filter` (api-task lọc màn Phân quyền công trình theo quyền app `task`, xem `api-task-management/docs/phan_quyen_giam_sat_app_gate.md`). |
+| 0010 | `0010_session_timestamps_to_timestamptz.sql` | Đổi 4 cột giờ `a_session` + 3 cột `a_refresh_token` từ `timestamp` → `timestamptz`. DB chạy timezone Asia/Bangkok nên cột naive giữ "giờ treo tường ICT", driver `pg` đọc lệch → màn "Phiên đăng nhập" hiện "Hoạt động vừa xong" cho mọi phiên. Tính lại `expires_at` cũ (bị lệch) từ `created_at + TTL`. **Chạy 1 lần, không idempotent.** |
 
 Bản sửa kiểm tra phiên bị thu hồi ngày 06/09/2026 chỉ thay đổi logic API/JWT và dùng các cột đã có (`session_id`, `user_id`, `revoked_at`, `expires_at`), vì vậy không phát sinh migration SQL mới.
 
