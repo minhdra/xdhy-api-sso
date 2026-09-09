@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import { injectable } from 'tsyringe';
 import { v4 as uuidv4 } from 'uuid';
 
+import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { config } from '../config/config';
 import { Action } from '../models/action';
 import { AppRepository } from '../repositories/appRepository';
@@ -150,7 +151,9 @@ export class AuthService {
       middle_name: user.middle_name,
       last_name: user.last_name,
       full_name: user.full_name,
-      avatar: user.avatar,
+      // URL trình duyệt tải được (tương đối theo origin) thay vì path thô trong
+      // DB - xem toPublicAvatarUrl.
+      avatar: toPublicAvatarUrl(user.avatar),
       gender: user.gender,
       date_of_birth: user.date_of_birth,
       email: user.email,

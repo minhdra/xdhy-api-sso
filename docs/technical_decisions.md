@@ -114,7 +114,7 @@ tích hợp) không được phép vô tình tắt luôn lớp bảo vệ.
 **Mở rộng (09/09/2026) — route nội bộ `/internal/app-access/filter` cho phép service khác lọc theo
 quyền app.** `api-task-management` cần: danh sách thêm người ở màn Phân quyền công trình chỉ gồm người
 có quyền app `task` (DB `task_management` tách khỏi `build_management` nên không JOIN được `a_app_access`
-trực tiếp). **Chọn HTTP nội bộ lúc đọc** (cache 60s phía client, fail-closed) thay vì (a) đồng bộ
+trực tiếp). **Chọn HTTP nội bộ lúc đọc** (KHÔNG cache — cấp/thu quyền hiệu lực ngay, fail-closed) thay vì (a) đồng bộ
 `a_app_access` sang `task_management` — thêm hạ tầng sync producer ở api-sso vốn chưa từng đẩy gì đi,
 eventual consistency; hay (b) dblink cross-DB — nhúng credential vào SQL, coupling schema. **Endpoint
 batch** `{ app_key, user_ids[] }` → `{ allowed_user_ids[] }` thay vì N lần gọi `a_UserHasAppAccess`:
@@ -139,3 +139,24 @@ axios ở tầng gọi API *sau* bootstrap vốn đã phân biệt đúng từ t
 ban đầu là gộp chung — đây là chỗ đã sửa). Verify end-to-end trên sandbox: mint JWT thật + session hợp
 lệ, gọi `/me?app=finance` trả 200 lúc có quyền, xoá `a_app_access` → 403 ngay lập tức, thêm lại → 200
 lại.
+
+## `/me` và `/account/profile` trả URL avatar sẵn sàng, không phải path thô (09/09/2026)
+
+**Bối cảnh:** `user_profiles.avatar` lưu 2 dạng — `/api-sso/uploads/avatars/x.jpg` (avatar api-sso
+upload) và `uploads\yyyy-mm-dd\ten file.png` (avatar cũ do api-core lưu, backslash, tên có dấu cách /
+`[]` / `()`). Trước đây `/me` trả nguyên chuỗi này, mỗi FE (`sso-web` `avatarSrc()`, `task-web`/
+`build-web` `resolveUploadUrl()`) tự ghép prefix + tự xử lý backslash. Avatar api-core mở ra URL
+`/api/api-core/uploads/...` **không hiện** vì gateway pipeline `/api/api-core/*` có `verifyAdmin-token` —
+`<img>` không kèm được cookie/session ổn định trong mọi ngữ cảnh (tab khác, subdomain khác).
+
+**Sửa:**
+1. **api-gateway**: thêm `coreUploadsPipeline` cho `/api/api-core/uploads/*` — KHÔNG verify token
+   (avatar không phải dữ liệu nhạy cảm; api-core cũng serve static không auth ở tầng service). Khai
+   TRƯỚC `api_core` để bắt trước. Giống `/api/sso/uploads/*` vốn đã public.
+2. **api-sso**: `toPublicAvatarUrl()` (`config/avatarUpload.ts`) chuẩn hoá về URL **tương đối theo
+   origin** (`/api/sso/uploads/...` hoặc `/api/api-core/uploads/...`, encode từng segment) — không
+   hard-code domain nên chạy đúng trên mọi môi trường. Dùng ở `authService.me()` +
+   `accountService.getProfile()`.
+3. **FE**: `avatarSrc()` / `resolveUploadUrl()` thành idempotent (path bắt đầu `/api/` hoặc `http` →
+   giữ nguyên) để không ghép prefix 2 lần; vẫn xử lý path thô từ chỗ khác (vd `actor_avatar` trong
+   notification, `a_AdminListUsers`).

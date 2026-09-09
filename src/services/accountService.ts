@@ -1,5 +1,6 @@
 import { injectable } from 'tsyringe';
 
+import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { AppError } from '../errors/AppError';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
@@ -22,8 +23,11 @@ export class AccountService {
 
   // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
   // để hiển thị, dù user không sửa được các field đó).
-  getProfile(userId: string) {
-    return this.userRepository.getAccountProfile(userId);
+  async getProfile(userId: string) {
+    const profile = await this.userRepository.getAccountProfile(userId);
+    if (!profile) return profile;
+    // avatar: path thô trong DB -> URL trình duyệt tải được (xem toPublicAvatarUrl).
+    return { ...profile, avatar: toPublicAvatarUrl(profile.avatar) };
   }
 
   // Chỉ đụng vào các field hồ sơ tự phục vụ - proc a_UpdateSelfProfile không
