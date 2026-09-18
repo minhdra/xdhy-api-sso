@@ -1,7 +1,13 @@
 import { injectable } from 'tsyringe';
 
 import { AppError } from '../errors/AppError';
-import { AppRepository, type SsoApp, type SsoAppAdmin, type SsoAppUser } from '../repositories/appRepository';
+import {
+  AppRepository,
+  type SsoApp,
+  type SsoAppAccessCandidate,
+  type SsoAppAdmin,
+  type SsoAppUser,
+} from '../repositories/appRepository';
 
 export interface UpsertAppInput {
   app_id?: string | null;
@@ -76,6 +82,34 @@ export class AppService {
   async setAppAccess(appId: string, userIds: string[], actorUserId: string): Promise<void> {
     try {
       await this.appRepository.adminSetAccess(appId, userIds, actorUserId);
+    } catch (error) {
+      throw toAppError(error);
+    }
+  }
+
+  async listAppAccessCandidates(
+    appId: string,
+    filters: { keyword: string; positionId?: number; page: number; pageSize: number },
+  ): Promise<{ rows: SsoAppAccessCandidate[]; total: number }> {
+    try {
+      const result = await this.appRepository.adminListAccessCandidates(appId, filters);
+      return { rows: result.rows, total: result.record_count };
+    } catch (error) {
+      throw toAppError(error);
+    }
+  }
+
+  async addAppAccess(appId: string, userIds: string[], actorUserId: string): Promise<number> {
+    try {
+      return await this.appRepository.adminAddAccess(appId, userIds, actorUserId);
+    } catch (error) {
+      throw toAppError(error);
+    }
+  }
+
+  async removeAppAccess(appId: string, userIds: string[]): Promise<number> {
+    try {
+      return await this.appRepository.adminRemoveAccess(appId, userIds);
     } catch (error) {
       throw toAppError(error);
     }

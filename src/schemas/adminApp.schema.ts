@@ -43,3 +43,23 @@ export const setAppAccessSchema = z
   })
   .openapi('SetAppAccessRequest');
 export type SetAppAccessInput = z.infer<typeof setAppAccessSchema>;
+
+export const appAccessCandidatesQuerySchema = z
+  .object({
+    q: z.string().trim().max(150).optional().default(''),
+    position_id: z.preprocess(
+      (value) => (value === '' || value === undefined ? undefined : value),
+      z.coerce.number().int().positive().optional(),
+    ),
+    page: z.coerce.number().int().min(1).optional().default(1),
+    page_size: z.coerce.number().int().min(1).max(100).optional().default(20),
+  })
+  .openapi('AppAccessCandidatesQuery');
+export type AppAccessCandidatesQuery = z.infer<typeof appAccessCandidatesQuerySchema>;
+
+export const mutateAppAccessSchema = z
+  .object({
+    user_ids: z.array(z.string().min(1)).min(1, 'Chọn ít nhất một người dùng').max(500),
+  })
+  .openapi('MutateAppAccessRequest');
+export type MutateAppAccessInput = z.infer<typeof mutateAppAccessSchema>;

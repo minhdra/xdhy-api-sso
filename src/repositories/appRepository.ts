@@ -13,7 +13,9 @@ export interface SsoApp {
 
 export interface SsoAppAdmin extends SsoApp {
   sort_order: number;
-  access_count: number;
+  direct_access_count: number;
+  eligible_user_count: number;
+  effective_access_count: number;
 }
 
 export interface SsoAppUser {
@@ -25,6 +27,10 @@ export interface SsoAppUser {
   // (xem sso-web/src/api.ts avatarSrc()), BE trả nguyên văn.
   avatar: string | null;
   position_name: string | null;
+}
+
+export interface SsoAppAccessCandidate extends SsoAppUser {
+  position_id: number | null;
 }
 
 // Mọi thao tác ở đây chỉ CALL stored procedure (0005_app_registry.sql) -
@@ -102,6 +108,33 @@ export class AppRepository {
       `CALL "a_AdminSetAppAccess"($1, $2::jsonb, $3, NULL, NULL, NULL)`,
       [appId, JSON.stringify(userIds), luUserId],
     );
+  }
+
+  async adminListAccessCandidates(
+    appId: string,
+    filters: { keyword: string; positionId?: number; page: number; pageSize: number },
+  ): Promise<{ rows: SsoAppAccessCandidate[]; record_count: number }> {
+    const result = await this.db.queryList(
+      `CALL "a_AdminListAppAccessCandidates"($1, $2, $3, $4, $5, NULL, NULL, NULL)`,
+      [appId, filters.keyword, filters.positionId ?? null, filters.page, filters.pageSize],
+    );
+    return { rows: result.rows as SsoAppAccessCandidate[], record_count: result.record_count };
+  }
+
+  async adminAddAccess(appId: string, userIds: string[], luUserId: string): Promise<number> {
+    const result = await this.db.query(
+      `CALL "a_AdminAddAppAccess"($1, $2::jsonb, $3, NULL, NULL, NULL)`,
+      [appId, JSON.stringify(userIds), luUserId],
+    );
+    return Number(result?.affected ?? 0);
+  }
+
+  async adminRemoveAccess(appId: string, userIds: string[]): Promise<number> {
+    const result = await this.db.query(
+      `CALL "a_AdminRemoveAppAccess"($1, $2::jsonb, NULL, NULL, NULL)`,
+      [appId, JSON.stringify(userIds)],
+    );
+    return Number(result?.affected ?? 0);
   }
 
   async adminListUsers(): Promise<SsoAppUser[]> {

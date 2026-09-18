@@ -4,6 +4,16 @@ Nguồn sự thật chính xác nhất: Swagger sinh trực tiếp từ code —
 `GET /api/docs/api-sso/`, mở công khai, không cần đăng nhập). File này là bản tóm tắt để tra nhanh; nếu
 lệch với Swagger, tin Swagger.
 
+Mọi response có header `X-Request-Id`. Client có thể gửi sẵn header này để
+correlate log; nếu thiếu hoặc sai định dạng, `api-sso` tự sinh UUID. Các route
+bootstrap `/me`, `/refresh`, `/apps` ghi structured log gồm request ID,
+navigation ID/app version (nếu client gửi), status và latency; không log
+token/cookie.
+
+Các route `/me`, `/refresh`, `/apps` trả `Cache-Control: no-store, private,
+must-revalidate` (kèm `Pragma: no-cache`, `Expires: 0`). Dữ liệu phiên/quyền
+không được phép dùng ETag/`304` vì trạng thái có thể thay đổi tức thời.
+
 Mọi endpoint dưới đây qua `api-gateway` ở tiền tố `/api/api-sso/*` → rewrite `/api-sso/*`
 (`api-gateway/config*/gateway.config.yml`, pipeline `ssoApiPipeline`/`ssoDocsPipeline`). `sso-web` chỉ
 gọi qua tiền tố này (`sso-web/src/api.ts`), không gọi thẳng `api-sso`. 6 đường tắt cũ
@@ -52,11 +62,14 @@ tên vô tình tắt luôn kiểm tra.
 
 | Method | Path | Body | Việc gì |
 | --- | --- | --- | --- |
-| GET | `/admin/apps` | — | Toàn bộ app active kèm `access_count` |
+| GET | `/admin/apps` | — | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count` |
 | POST | `/admin/apps` | `{ app_id?, app_key, app_name, description?, url?, color?, sort_order? }` | `app_id` rỗng/thiếu = tạo mới; có giá trị = cập nhật. `app_key` trùng (còn active) → 400 |
 | POST | `/admin/apps/delete` | `{ app_id }` | Xoá mềm + xoá luôn toàn bộ quyền đã cấp trên app đó |
 | GET | `/admin/apps/{app_id}/access` | — | Danh sách người đang được cấp quyền |
 | POST | `/admin/apps/{app_id}/access` | `{ user_ids: string[] }` | **Thay toàn bộ** danh sách (không phải cộng/trừ từng người) |
+| GET | `/admin/apps/{app_id}/access-candidates` | `q?`, `position_id?`, `page?`, `page_size?` | User active chưa có quyền hiệu lực; loại admin và grant đã tồn tại; trả `{ rows, total, page, page_size }` |
+| POST | `/admin/apps/{app_id}/access/add` | `{ user_ids: string[] }` | Cộng quyền theo delta, idempotent; trả `affected` thực tế |
+| POST | `/admin/apps/{app_id}/access/remove` | `{ user_ids: string[] }` | Gỡ quyền theo delta, idempotent; trả `affected` thực tế |
 | GET | `/admin/users` | — | Danh sách user active (cho ô chọn multi-select ở trang quản trị) |
 
 ## Nội bộ (`/internal/*`) — server-to-server, KHÔNG qua gateway, KHÔNG JWT

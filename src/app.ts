@@ -10,6 +10,7 @@ import { config } from './config/config';
 import { getJwk } from './config/jwt';
 import { errorHandler } from './errors/errorHandler';
 import { requireInternalSecret } from './middlewares/internalAuth';
+import { requestContext } from './middlewares/requestContext';
 import internalRouter from './routes/internalRouter';
 import router from './routes';
 
@@ -19,6 +20,7 @@ const app = express();
 app.set('trust proxy', 2);
 
 app.use(helmet());
+app.use(requestContext);
 
 app.use(
   cors({
@@ -92,6 +94,7 @@ app.use((req: Request, res: Response) => {
   return res.status(404).json({
     success: false,
     message: 'Không tìm thấy đường dẫn',
+    request_id: res.locals.requestId,
   });
 });
 

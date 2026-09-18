@@ -3,8 +3,10 @@ import { injectable } from 'tsyringe';
 
 import { AppService } from '../services/appService';
 import {
+  type AppAccessCandidatesQuery,
   type AppIdParam,
   type DeleteAppInput,
+  type MutateAppAccessInput,
   type SetAppAccessInput,
   type UpsertAppInput,
 } from '../schemas/adminApp.schema';
@@ -56,6 +58,44 @@ export class AdminAppController {
       const { user_ids } = req.body as SetAppAccessInput;
       await this.appService.setAppAccess(app_id, user_ids, req.userId as string);
       res.json({ success: true, message: 'Đã cập nhật danh sách người được truy cập.' });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async listAccessCandidates(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { app_id } = req.params as unknown as AppIdParam;
+      const query = req.query as unknown as AppAccessCandidatesQuery;
+      const result = await this.appService.listAppAccessCandidates(app_id, {
+        keyword: query.q,
+        positionId: query.position_id,
+        page: query.page,
+        pageSize: query.page_size,
+      });
+      res.json({ ...result, page: query.page, page_size: query.page_size });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async addAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { app_id } = req.params as unknown as AppIdParam;
+      const { user_ids } = req.body as MutateAppAccessInput;
+      const affected = await this.appService.addAppAccess(app_id, user_ids, req.userId as string);
+      res.json({ success: true, message: `Đã thêm quyền cho ${affected} người.`, affected });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async removeAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { app_id } = req.params as unknown as AppIdParam;
+      const { user_ids } = req.body as MutateAppAccessInput;
+      const affected = await this.appService.removeAppAccess(app_id, user_ids);
+      res.json({ success: true, message: `Đã gỡ quyền của ${affected} người.`, affected });
     } catch (error) {
       next(error);
     }

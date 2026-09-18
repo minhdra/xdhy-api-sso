@@ -6,8 +6,10 @@ import { requireAuth } from '../middlewares/auth';
 import { requireAdmin } from '../middlewares/requireAdmin';
 import { defineRoute } from '../openapi/defineRoute';
 import {
+  appAccessCandidatesQuerySchema,
   appIdParamSchema,
   deleteAppSchema,
+  mutateAppAccessSchema,
   setAppAccessSchema,
   upsertAppSchema,
 } from '../schemas/adminApp.schema';
@@ -82,6 +84,45 @@ adminAppRouter.post(
     responses: { 200: { description: 'Đã cập nhật' }, 400: { description: 'Không tìm thấy app' } },
   }),
   controller.setAccess.bind(controller),
+);
+
+adminAppRouter.get(
+  '/admin/apps/:app_id/access-candidates',
+  ...defineRoute({
+    method: 'get',
+    path: '/admin/apps/{app_id}/access-candidates',
+    tags,
+    summary: 'Danh sách người chưa có quyền hiệu lực, có tìm kiếm và phân trang',
+    schema: { params: appIdParamSchema, query: appAccessCandidatesQuerySchema },
+    responses: { 200: { description: 'OK' }, 400: { description: 'Không tìm thấy app' } },
+  }),
+  controller.listAccessCandidates.bind(controller),
+);
+
+adminAppRouter.post(
+  '/admin/apps/:app_id/access/add',
+  ...defineRoute({
+    method: 'post',
+    path: '/admin/apps/{app_id}/access/add',
+    tags,
+    summary: 'Cộng quyền truy cập cho các user hợp lệ chưa có quyền',
+    schema: { params: appIdParamSchema, body: mutateAppAccessSchema },
+    responses: { 200: { description: 'Đã thêm' }, 400: { description: 'Dữ liệu không hợp lệ' } },
+  }),
+  controller.addAccess.bind(controller),
+);
+
+adminAppRouter.post(
+  '/admin/apps/:app_id/access/remove',
+  ...defineRoute({
+    method: 'post',
+    path: '/admin/apps/{app_id}/access/remove',
+    tags,
+    summary: 'Gỡ quyền truy cập theo danh sách user',
+    schema: { params: appIdParamSchema, body: mutateAppAccessSchema },
+    responses: { 200: { description: 'Đã gỡ' }, 400: { description: 'Dữ liệu không hợp lệ' } },
+  }),
+  controller.removeAccess.bind(controller),
 );
 
 adminAppRouter.get(
