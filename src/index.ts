@@ -5,11 +5,13 @@ import { container } from 'tsyringe';
 import app from './app';
 import { config } from './config/config';
 import { Database } from './config/database';
+import { startDataCleanupJob } from './jobs/dataCleanupJob';
 
 app.set('port', config.port);
 const server = app.listen(app.get('port'), () => {
   console.log(`api-sso is running on port ${config.port}`);
 });
+const stopDataCleanupJob = startDataCleanupJob();
 
 let shuttingDown = false;
 
@@ -18,6 +20,7 @@ const gracefulShutdown = (signal: string) => {
   shuttingDown = true;
 
   console.log(`Received ${signal}, closing server...`);
+  stopDataCleanupJob();
 
   const forceExitTimer = setTimeout(() => {
     console.error('Graceful shutdown timed out, forcing exit.');

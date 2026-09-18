@@ -119,6 +119,12 @@ nghĩa (code đã tắt: `role_group.indexOf('sa,')`). Tính lại **mỗi reque
 `/refresh` không mang lại field đó (xem `authService.refresh`). Áp dụng cho toàn bộ `adminAppRouter`
 (`/admin/apps`, `/admin/users`).
 
+## Scheduled cleanup
+
+Service tự khởi động `dataCleanupJob` cùng HTTP server và dừng timer trong graceful shutdown. Job không
+có endpoint công khai; nó chỉ dọn ba bảng auth do SSO sở hữu theo retention cấu hình, xóa theo batch và
+dùng advisory lock để an toàn khi chạy nhiều instance. Lỗi cleanup chỉ được log, không làm dừng server.
+
 ## Docker
 
 Multi-stage: build stage cần `python3 make g++` (biên dịch native binding cho `bcrypt` — alpine không

@@ -29,6 +29,20 @@ DB-wide (mọi nghiệp vụ nằm trong proc, xem `api-task-management/docs/dat
 procedure"). Đây là quyết định chốt lại giữa chừng phiên làm việc, không phải nhất quán ngay từ đầu —
 xem [`technical_decisions.md`](./technical_decisions.md).
 
+## Job dọn dữ liệu xác thực
+
+`src/jobs/dataCleanupJob.ts` chạy định kỳ trong process, mặc định mỗi 24 giờ và trì hoãn 2 phút sau khi
+service khởi động. Job xóa theo batch nhỏ: password-reset token hết hạn/đã dùng quá 7 ngày, sau đó
+refresh token và session hết hạn/đã thu hồi quá 30 ngày. Refresh token luôn được xóa trước session vì có
+khóa ngoại. PostgreSQL advisory lock ngăn nhiều instance cùng xóa một batch; timer cũng chặn hai lượt
+trong cùng process chồng nhau.
+
+Biến môi trường: `DATA_CLEANUP_ENABLED`, `DATA_CLEANUP_DRY_RUN`, `DATA_CLEANUP_INTERVAL_MS`,
+`DATA_CLEANUP_INITIAL_DELAY_MS`, `DATA_CLEANUP_BATCH_SIZE`, `DATA_CLEANUP_MAX_BATCHES`,
+`SESSION_RETENTION_DAYS`, `PASSWORD_RESET_TOKEN_RETENTION_DAYS`. Khi triển khai lần đầu có thể bật
+`DATA_CLEANUP_DRY_RUN=true` để chỉ đếm và ghi log. Migration `0012_cleanup_indexes.sql` phải được áp
+dụng trước khi bảng đã lớn để truy vấn retention không full-scan.
+
 ## Stored procedure repo này sở hữu
 
 Toàn bộ theo khuôn `OUT p_result jsonb, OUT p_error_code integer, OUT p_error_message varchar` (giống hệt

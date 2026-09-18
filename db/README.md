@@ -17,6 +17,7 @@ Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng,
 | 0009 | `0009_internal_app_access_filter.sql` | Hàm `a_FilterUsersWithAppAccess(app_key, user_ids jsonb)` — bọc `a_UserHasAppAccess` cho cả tập. Dùng ở route nội bộ `POST /internal/app-access/filter` (api-task lọc màn Phân quyền công trình theo quyền app `task`, xem `api-task-management/docs/phan_quyen_giam_sat_app_gate.md`). |
 | 0010 | `0010_session_timestamps_to_timestamptz.sql` | Đổi 4 cột giờ `a_session` + 3 cột `a_refresh_token` từ `timestamp` → `timestamptz`. DB chạy timezone Asia/Bangkok nên cột naive giữ "giờ treo tường ICT", driver `pg` đọc lệch → màn "Phiên đăng nhập" hiện "Hoạt động vừa xong" cho mọi phiên. Tính lại `expires_at` cũ (bị lệch) từ `created_at + TTL`. **Chạy 1 lần, không idempotent.** |
 | 0011 | `0011_admin_app_access_delta.sql` | Count quyền trực tiếp/đủ điều kiện/hiệu lực, danh sách ứng viên có lọc + phân trang, và proc cộng/gỡ quyền idempotent theo delta. |
+| 0012 | `0012_cleanup_indexes.sql` | Index theo thời hạn/thu hồi cho job tự động dọn session, refresh token và password-reset token cũ. |
 
 Bản sửa kiểm tra phiên bị thu hồi ngày 06/09/2026 chỉ thay đổi logic API/JWT và dùng các cột đã có (`session_id`, `user_id`, `revoked_at`, `expires_at`), vì vậy không phát sinh migration SQL mới.
 

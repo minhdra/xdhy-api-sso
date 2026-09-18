@@ -10,6 +10,11 @@ function requireEnv(key: string): string {
   return value;
 }
 
+function envBoolean(key: string, defaultValue: boolean): boolean {
+  const value = env(key, defaultValue ? 'true' : 'false').trim().toLowerCase();
+  return value === 'true' || value === '1' || value === 'yes';
+}
+
 export const config = {
   env: env('NODE_ENV', 'development'),
   port: env.int('PORT', 6005),
@@ -82,5 +87,17 @@ export const config = {
   coreInternal: {
     baseUrl: env('CORE_INTERNAL_URL', 'http://api-core:6001'),
     secret: env('CORE_INTERNAL_SECRET', ''),
+  },
+  // Dọn các bản ghi xác thực đã hết giá trị sử dụng. Job chỉ đụng 3 bảng
+  // riêng của SSO; mặc định giữ thêm một khoảng retention để phục vụ tra soát.
+  cleanup: {
+    enabled: envBoolean('DATA_CLEANUP_ENABLED', true),
+    dryRun: envBoolean('DATA_CLEANUP_DRY_RUN', false),
+    intervalMs: env.int('DATA_CLEANUP_INTERVAL_MS', 24 * 60 * 60 * 1000),
+    initialDelayMs: env.int('DATA_CLEANUP_INITIAL_DELAY_MS', 2 * 60 * 1000),
+    batchSize: env.int('DATA_CLEANUP_BATCH_SIZE', 500),
+    maxBatches: env.int('DATA_CLEANUP_MAX_BATCHES', 20),
+    sessionRetentionDays: env.int('SESSION_RETENTION_DAYS', 30),
+    passwordResetRetentionDays: env.int('PASSWORD_RESET_TOKEN_RETENTION_DAYS', 7),
   },
 };
