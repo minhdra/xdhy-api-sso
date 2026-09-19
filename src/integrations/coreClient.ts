@@ -2,8 +2,9 @@ import { config } from '../config/config';
 
 // Sau khi user tự sửa hồ sơ / đổi avatar ở sso-web (đã ghi build_management
 // qua a_UpdateSelfProfile / a_SetAvatar), báo api-core đồng bộ xuống
-// task_management + module chat. api-core là nơi DUY NHẤT giữ logic sync đó
-// (split tên, tính isAdmin, hình dạng payload chat) + secret task/chat -
+// task_management + module chat + api-meeting. api-core là nơi DUY NHẤT giữ
+// logic sync đó (split tên, tính isAdmin, hình dạng payload chat/meeting) +
+// các secret downstream -
 // api-sso chỉ cần 1 secret (CORE_INTERNAL_SECRET) để nói chuyện api-core.
 //
 // KHÔNG throw / KHÔNG chặn phản hồi sửa hồ sơ: lỗi mạng / api-core down /
