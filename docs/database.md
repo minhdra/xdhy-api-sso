@@ -13,7 +13,7 @@ quy tắc đầy đủ ở [`db/README.md`](../db/README.md).
 
 | Bảng | Vai trò | Cột đáng chú ý |
 | --- | --- | --- |
-| `a_session` | Phiên đăng nhập thu hồi được | `session_id` (PK), `user_id`, `expires_at`, `revoked_at`, `remember` (audit lý do hạn dùng), `user_agent`/`ip` |
+| `a_session` | Phiên đăng nhập thu hồi được | `session_id` (PK), `user_id`, `expires_at`, `revoked_at`, `remember` (audit lý do hạn dùng), `user_agent` (`varchar(512)` từ migration `0013`, `SessionRepository.createSession` tự cắt 512 ký tự — UA webview có thể dài hơn, không cắt thì `INSERT` lỗi và đăng nhập trả 500; token nhận diện app như `FBAN` nằm cuối UA nên không để giới hạn quá thấp)/`ip` (`varchar(64)`, cũng cắt) |
 | `a_refresh_token` | Refresh token gắn với 1 `a_session` | `jti` (PK), `session_id`, `expires_at`, `revoked_at`, `rotated_to` (để sẵn cho rotation — **chưa bật**) |
 | `a_password_reset_token` | Token "quên mật khẩu" 1 lần | `token_hash` (PK, SHA-256 — **không lưu token thật**), `expires_at` (1 giờ), `used_at` |
 | `a_app` | Danh sách app hiển thị ở trang chủ `sso-web` (thay config tĩnh cũ) | `app_id` (PK), `app_key` (slug, unique **có điều kiện** `WHERE active_flag=1`), `app_name`, `url`, `color`, `sort_order`, `active_flag` (soft-delete) |

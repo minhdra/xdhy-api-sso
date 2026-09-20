@@ -42,8 +42,11 @@ export class SessionRepository {
         params.userId,
         params.expiresAt,
         params.remember,
-        params.userAgent ?? null,
-        params.ip ?? null,
+        // Cột user_agent là varchar(512) (migration 0013): UA webview
+        // (Facebook/Instagram...) có thể dài hơn -> INSERT lỗi "value too long"
+        // làm đăng nhập trả 500.
+        params.userAgent?.slice(0, 512) ?? null,
+        params.ip?.slice(0, 64) ?? null,
       ],
     );
   }
