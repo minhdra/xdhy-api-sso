@@ -35,11 +35,13 @@ xem [`technical_decisions.md`](./technical_decisions.md).
 service khởi động. Job xóa theo batch nhỏ: password-reset token hết hạn/đã dùng quá 7 ngày, sau đó
 refresh token và session hết hạn/đã thu hồi quá 30 ngày. Refresh token luôn được xóa trước session vì có
 khóa ngoại. PostgreSQL advisory lock ngăn nhiều instance cùng xóa một batch; timer cũng chặn hai lượt
-trong cùng process chồng nhau.
+trong cùng process chồng nhau. Cùng job quét `uploads/avatars` và xóa file quá grace period không còn
+được `user_profiles.avatar` tham chiếu; thư mục avatar rỗng cũng được dọn. Avatar hiện tại không bị xóa.
 
 Biến môi trường: `DATA_CLEANUP_ENABLED`, `DATA_CLEANUP_DRY_RUN`, `DATA_CLEANUP_INTERVAL_MS`,
 `DATA_CLEANUP_INITIAL_DELAY_MS`, `DATA_CLEANUP_BATCH_SIZE`, `DATA_CLEANUP_MAX_BATCHES`,
-`SESSION_RETENTION_DAYS`, `PASSWORD_RESET_TOKEN_RETENTION_DAYS`. Khi triển khai lần đầu có thể bật
+`SESSION_RETENTION_DAYS`, `PASSWORD_RESET_TOKEN_RETENTION_DAYS`, `ORPHAN_AVATAR_GRACE_HOURS`,
+`ORPHAN_AVATAR_MAX_FILES_PER_RUN`. Khi triển khai lần đầu có thể bật
 `DATA_CLEANUP_DRY_RUN=true` để chỉ đếm và ghi log. Migration `0012_cleanup_indexes.sql` phải được áp
 dụng trước khi bảng đã lớn để truy vấn retention không full-scan.
 

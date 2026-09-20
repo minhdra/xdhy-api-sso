@@ -97,8 +97,11 @@ service khác (`api-task-management`/`api-gateway` verify JWT xong là xong, kh�
 
 ## Upload avatar
 
-`multer` diskStorage ghi `uploads/avatars/<timestamp>-<random>.<ext>` (chỉ ảnh, ≤5MB —
-`config/avatarUpload.ts`). Serve lại qua `express.static('uploads')` mount ở `/api-sso/uploads`. Lưu
+`multer` diskStorage ghi `uploads/avatars/<username>--<user_id>/<uuid>.<ext>` (chỉ ảnh, ≤5MB —
+`config/avatarUpload.ts`). Username giúp nhận diện nhanh, còn `user_id` được encode thành một path segment
+ổn định để tránh trùng/đổi tên; UUID là tên vật lý bất biến và tên gốc không được dùng. Avatar cũ tại
+`uploads/avatars/<filename>` vẫn được serve để tương thích. Serve
+lại qua `express.static('uploads')` mount ở `/api-sso/uploads`. Lưu
 **local disk trong container** — mất khi container bị recreate (không volume riêng, không object
 storage) — chấp nhận được cho quy mô hiện tại, xem giới hạn tương tự ở
 `api-task-management/docs/technical_decisions.md` (upload local disk).
@@ -122,8 +125,9 @@ nghĩa (code đã tắt: `role_group.indexOf('sa,')`). Tính lại **mỗi reque
 ## Scheduled cleanup
 
 Service tự khởi động `dataCleanupJob` cùng HTTP server và dừng timer trong graceful shutdown. Job không
-có endpoint công khai; nó chỉ dọn ba bảng auth do SSO sở hữu theo retention cấu hình, xóa theo batch và
-dùng advisory lock để an toàn khi chạy nhiều instance. Lỗi cleanup chỉ được log, không làm dừng server.
+có endpoint công khai; nó dọn ba bảng auth theo retention, cùng avatar vật lý không còn DB tham chiếu
+sau grace period, xóa theo batch/giới hạn scan và dùng advisory lock để an toàn khi chạy nhiều instance.
+Lỗi cleanup chỉ được log, không làm dừng server.
 
 ## Docker
 

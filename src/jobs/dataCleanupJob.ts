@@ -18,7 +18,8 @@ export const startDataCleanupJob = (): (() => void) => {
         console.log(
           `[data-cleanup]${config.cleanup.dryRun ? ' DRY-RUN' : ''} ` +
             `reset=${result.counts.password_reset_tokens}, ` +
-            `refresh=${result.counts.refresh_tokens}, session=${result.counts.sessions}`,
+            `refresh=${result.counts.refresh_tokens}, session=${result.counts.sessions}, ` +
+            `avatar_files=${result.counts.avatar_files}`,
         );
       }
     } catch (error) {

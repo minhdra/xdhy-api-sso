@@ -99,5 +99,7 @@ export const config = {
     maxBatches: env.int('DATA_CLEANUP_MAX_BATCHES', 20),
     sessionRetentionDays: env.int('SESSION_RETENTION_DAYS', 30),
     passwordResetRetentionDays: env.int('PASSWORD_RESET_TOKEN_RETENTION_DAYS', 7),
+    orphanAvatarGraceHours: env.int('ORPHAN_AVATAR_GRACE_HOURS', 24),
+    orphanAvatarMaxFilesPerRun: env.int('ORPHAN_AVATAR_MAX_FILES_PER_RUN', 1000),
   },
 };

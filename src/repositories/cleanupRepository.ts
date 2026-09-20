@@ -6,12 +6,14 @@ export interface SsoCleanupCounts {
   password_reset_tokens: number;
   refresh_tokens: number;
   sessions: number;
+  avatar_files: number;
 }
 
 const emptyCounts = (): SsoCleanupCounts => ({
   password_reset_tokens: 0,
   refresh_tokens: 0,
   sessions: 0,
+  avatar_files: 0,
 });
 
 @injectable()
@@ -110,7 +112,20 @@ export class CleanupRepository {
         password_reset_tokens: Number(row.password_reset_tokens ?? 0),
         refresh_tokens: Number(row.refresh_tokens ?? 0),
         sessions: Number(row.sessions ?? 0),
+        avatar_files: 0,
       },
     };
+  }
+
+  async isAvatarPathReferenced(diskPath: string): Promise<boolean> {
+    const publicUrl = `/api-sso/${diskPath.replace(/\\/g, '/')}`;
+    const rows = await this.db.raw(
+      `SELECT EXISTS (
+         SELECT 1 FROM user_profiles
+         WHERE avatar = $1 OR avatar = $2
+       ) AS referenced`,
+      [publicUrl, diskPath],
+    );
+    return rows[0]?.referenced === true;
   }
 }

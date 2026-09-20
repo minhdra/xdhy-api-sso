@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
 import { injectable } from 'tsyringe';
 
 import { config } from '../config/config';
@@ -17,6 +20,7 @@ export class CleanupService {
       password_reset_tokens: 0,
       refresh_tokens: 0,
       sessions: 0,
+      avatar_files: 0,
     };
 
     for (let batch = 0; batch < maxBatches; batch += 1) {
@@ -44,6 +48,64 @@ export class CleanupService {
       }
     }
 
+    totals.avatar_files = await this.cleanupOrphanAvatars();
     return { acquired: true, counts: totals };
+  }
+
+  private async cleanupOrphanAvatars(): Promise<number> {
+    const avatarRoot = path.resolve(process.cwd(), 'uploads/avatars');
+    const cutoffMs =
+      Date.now() - (config.cleanup.orphanAvatarGraceHours ?? 24) * 60 * 60 * 1000;
+    const maxFiles = config.cleanup.orphanAvatarMaxFilesPerRun ?? 1000;
+    let scannedFiles = 0;
+    let orphanFiles = 0;
+
+    const walk = async (directory: string): Promise<void> => {
+      if (scannedFiles >= maxFiles) return;
+      let entries: import('node:fs').Dirent[];
+      try {
+        entries = await fs.readdir(directory, { withFileTypes: true });
+      } catch (error: any) {
+        if (error?.code === 'ENOENT') return;
+        throw error;
+      }
+
+      for (const entry of entries) {
+        if (scannedFiles >= maxFiles) break;
+        const absolutePath = path.join(directory, entry.name);
+        if (entry.isDirectory()) {
+          await walk(absolutePath);
+          continue;
+        }
+        if (!entry.isFile()) continue;
+
+        scannedFiles += 1;
+        const stat = await fs.stat(absolutePath);
+        if (stat.mtimeMs >= cutoffMs) continue;
+
+        const relativePath = path.relative(process.cwd(), absolutePath).split(path.sep).join('/');
+        if (await this.cleanupRepository.isAvatarPathReferenced(relativePath)) continue;
+
+        orphanFiles += 1;
+        if (!config.cleanup.dryRun) {
+          try {
+            await fs.unlink(absolutePath);
+          } catch (error: any) {
+            if (error?.code !== 'ENOENT') throw error;
+          }
+        }
+      }
+
+      if (directory !== avatarRoot) {
+        try {
+          await fs.rmdir(directory);
+        } catch (error: any) {
+          if (!['ENOENT', 'ENOTEMPTY'].includes(error?.code)) throw error;
+        }
+      }
+    };
+
+    await walk(avatarRoot);
+    return orphanFiles;
   }
 }

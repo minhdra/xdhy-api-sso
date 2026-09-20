@@ -76,7 +76,7 @@ app.get('/.well-known/jwks.json', (_req: Request, res: Response) => {
   res.json({ keys: [getJwk()] });
 });
 
-// Ảnh đại diện user upload (multer ghi vào uploads/avatars/). Gateway rewrite
+// Ảnh đại diện user upload (multer ghi vào uploads/avatars/<user_id>/). Gateway rewrite
 // /api/api-sso/uploads/* -> /api-sso/uploads/*. Không cần auth để xem ảnh.
 app.use('/api-sso/uploads', express.static('uploads'));
 

@@ -142,8 +142,10 @@ lại.
 
 ## `/me` và `/account/profile` trả URL avatar sẵn sàng, không phải path thô (09/09/2026)
 
-**Bối cảnh:** `user_profiles.avatar` lưu 2 dạng — `/api-sso/uploads/avatars/x.jpg` (avatar api-sso
-upload) và `uploads\yyyy-mm-dd\ten file.png` (avatar cũ do api-core lưu, backslash, tên có dấu cách /
+**Bối cảnh:** `user_profiles.avatar` lưu 2 dạng —
+`/api-sso/uploads/avatars/<username>--<user_id>/<uuid>.jpg` (avatar api-sso upload; avatar api-sso cũ
+không có cấp user vẫn tương thích) và
+`uploads\yyyy-mm-dd\ten file.png` (avatar cũ do api-core lưu, backslash, tên có dấu cách /
 `[]` / `()`). Trước đây `/me` trả nguyên chuỗi này, mỗi FE (`sso-web` `avatarSrc()`, `task-web`/
 `build-web` `resolveUploadUrl()`) tự ghép prefix + tự xử lý backslash. Avatar api-core mở ra URL
 `/api/api-core/uploads/...` **không hiện** vì gateway pipeline `/api/api-core/*` có `verifyAdmin-token` —

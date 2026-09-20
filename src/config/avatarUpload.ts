@@ -1,22 +1,56 @@
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
+import { type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
+import { container } from 'tsyringe';
 
 import { AppError } from '../errors/AppError';
+import { UserRepository } from '../repositories/userRepository';
 
-const AVATAR_DIR = 'uploads/avatars';
+const AVATAR_ROOT = 'uploads/avatars';
 const ALLOWED = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
 const MAX_BYTES = 5 * 1024 * 1024;
+const userRepository = container.resolve(UserRepository);
+
+// multer chọn destination trước controller. Resolve username sau requireAuth
+// để thư mục đọc được nhưng vẫn gắn user_id bất biến nhằm tránh trùng/đổi tên.
+export const resolveAvatarUploadOwner = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const userId = req.userId;
+    if (!userId) throw new AppError(401, 'Chưa đăng nhập.');
+    const account = await userRepository.getUsernameEmailById(userId);
+    if (!account) throw new AppError(404, 'Không tìm thấy tài khoản.');
+    req.avatarUsername = account.user_name;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    if (!fs.existsSync(AVATAR_DIR)) fs.mkdirSync(AVATAR_DIR, { recursive: true });
-    cb(null, AVATAR_DIR);
+  destination: (req, _file, cb) => {
+    // Route đã qua requireAuth trước multer. Encode thành 1 segment để user_id
+    // không thể tạo thêm cấp thư mục dù sau này format ID thay đổi.
+    const userId = req.userId;
+    const username = req.avatarUsername;
+    if (!userId || !username) {
+      cb(new AppError(401, 'Chưa đăng nhập.'), '');
+      return;
+    }
+    const ownerDir = `${encodeURIComponent(username.toLowerCase())}--${encodeURIComponent(userId)}`;
+    const avatarDir = path.join(AVATAR_ROOT, ownerDir);
+    if (!fs.existsSync(avatarDir)) fs.mkdirSync(avatarDir, { recursive: true });
+    cb(null, avatarDir);
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
@@ -42,7 +76,7 @@ export const toAvatarUrl = (diskPath: string): string =>
 // Giá trị user_profiles.avatar có 3 dạng:
 //   - null / rỗng                         -> null
 //   - URL tuyệt đối "http(s)://..."       -> giữ nguyên
-//   - "/api-sso/uploads/avatars/x.jpg"    -> avatar do api-sso upload
+//   - "/api-sso/uploads/avatars/<user_id>/<uuid>.jpg" -> avatar do api-sso upload
 //   - "uploads\\yyyy-mm-dd\\ten file.png" -> avatar cũ do api-core lưu (backslash,
 //                                            tên file có dấu cách / [] ())
 // Trả về URL TƯƠNG ĐỐI THEO ORIGIN mà trình duyệt tải được (không hard-code
