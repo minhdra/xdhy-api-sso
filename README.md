@@ -113,6 +113,21 @@ Không có `docker-compose.yml` riêng cho service này — chạy cùng cụm �
 docker compose -f ../docker-compose.real.yml up -d --build api-sso
 ```
 
+## Deploy (Windows / IIS host, GitLab CI)
+
+`dist/` **được commit vào repo** (không còn trong `.gitignore`), CI không build. Quy trình:
+
+1. Dev: `pnpm build` → `git add dist` → commit → push nhánh `dev`. **Quên build = deploy code cũ.**
+2. GitLab runner (Windows, tag `dev`) chạy job `deploy-server` trong [`.gitlab-ci.yml`](./.gitlab-ci.yml)
+   (toàn bộ logic nằm trong 1 file này): dừng process cũ (Scheduled Task `api-sso` + kill theo port), đồng bộ
+   `dist/` + `package*.json` vào `C:\inetpub\wwwroot\XayDung\api-sso`, `npm i --omit=dev`, đăng ký lại
+   Scheduled Task và chạy `node dist\index.js` (log ở `logs\api-sso.log`; `start.cmd` do job tự sinh ra).
+3. Task chạy dưới SYSTEM, tự khởi động lại khi reboot / crash.
+
+Yêu cầu trên server: Node.js cài system-wide, `.env` production và `keys\private.pem` đặt sẵn ở thư mục đích
+(repo không chứa; job không đụng `.env`, `keys/`, `uploads/`, `logs/`, `node_modules/`), runner có quyền
+Administrator. Repo chưa có `package-lock.json` nên `npm i` resolve theo range trong `package.json`.
+
 ## Tài liệu dự án
 
 - [`docs/architecture.md`](./docs/architecture.md) — Kiến trúc, vị trí trong toàn hệ thống

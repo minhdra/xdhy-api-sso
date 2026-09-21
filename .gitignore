@@ -1,4 +1,4 @@
-/dist
+# /dist  <- KHÔNG ignore: dist được commit để CI/CD deploy thẳng (xem .gitlab-ci.yml)
 /node_modules
 .env
 .env.local
