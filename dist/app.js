@@ -100,6 +100,9 @@ app.get('/.well-known/jwks.json', (_req, res) => {
 });
 // Ảnh đại diện user upload (multer ghi vào uploads/avatars/<user_id>/). Gateway rewrite
 // /api/api-sso/uploads/* -> /api-sso/uploads/*. Không cần auth để xem ảnh.
+// Tên file icon/avatar mới có UUID và không bị ghi đè, nên cache dài hạn an toàn.
+app.use('/api-sso/uploads/app-icons', express_1.default.static('uploads/app-icons', { maxAge: '1y', immutable: true }));
+app.use('/api-sso/uploads/avatars', express_1.default.static('uploads/avatars', { maxAge: '1y', immutable: true }));
 app.use('/api-sso/uploads', express_1.default.static('uploads'));
 // Route nội bộ server-to-server (api-task-management gọi sang). Đặt NGOÀI
 // '/api-sso' - gateway chỉ rewrite /api/api-sso/* -> /api-sso/* nên '/internal/*'

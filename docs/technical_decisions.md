@@ -162,3 +162,7 @@ không có cấp user vẫn tương thích) và
 3. **FE**: `avatarSrc()` / `resolveUploadUrl()` thành idempotent (path bắt đầu `/api/` hoặc `http` →
    giữ nguyên) để không ghép prefix 2 lần; vẫn xử lý path thô từ chỗ khác (vd `actor_avatar` trong
    notification, `a_AdminListUsers`).
+
+## Icon ứng dụng: URL mới cho mỗi lần cập nhật (22/09/2026)
+
+Icon upload là PNG 138 × 138 (3 lần kích thước hiển thị 46 px) để sắc nét trên màn hình mật độ cao. File giới hạn 1MB, có UUID trong tên; `a_app.icon` lưu URL mới. Sau khi DB ghi thành công, API dọn file cũ. Tên mới tránh trình duyệt dùng lại ảnh đã cache khi admin đóng modal. Static icon/avatar dùng `Cache-Control: max-age=31536000, immutable` vì file UUID không bị ghi đè. Avatar được client cắt về 400 × 400 và nén WebP trước khi upload; API avatar vẫn nhận các định dạng cũ cho client khác.

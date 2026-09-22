@@ -64,7 +64,7 @@ tên vô tình tắt luôn kiểm tra.
 | --- | --- | --- | --- |
 | GET | `/admin/apps` | — | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count`. Từ 0014: `direct_access_count` và `eligible_user_count` **loại admin** (tỉ lệ luôn ≤ 100%), `effective_access_count` vẫn tính admin |
 | POST | `/admin/apps` | `{ app_id?, app_key, app_name, description?, url?, color?, sort_order? }` | `app_id` rỗng/thiếu = tạo mới; có giá trị = cập nhật. `app_key` trùng (còn active) → 400 |
-| POST | `/admin/apps/{app_id}/icon` | `multipart/form-data`, field `file` | Admin upload PNG 46 × 46, tối đa 1MB; lưu vào volume `uploads/app-icons` và ghi URL vào `a_app.icon`; GET `/apps` và `/admin/apps` đọc `icon` từ DB (URL hoặc `null`). Ảnh cũ được thay theo `app_id` |
+| POST | `/admin/apps/{app_id}/icon` | `multipart/form-data`, field `file` | Admin upload PNG 138 × 138, tối đa 1MB; lưu file có tên mới vào volume `uploads/app-icons` và ghi URL vào `a_app.icon`; GET `/apps` và `/admin/apps` đọc `icon` từ DB (URL hoặc `null`). File cũ được dọn sau khi DB cập nhật thành công |
 | POST | `/admin/apps/delete` | `{ app_id }` | Xoá mềm + xoá luôn toàn bộ quyền đã cấp trên app đó |
 | GET | `/admin/apps/{app_id}/access` | — | Danh sách người đang được cấp quyền |
 | POST | `/admin/apps/{app_id}/access` | `{ user_ids: string[] }` | **Thay toàn bộ** danh sách (không phải cộng/trừ từng người) |

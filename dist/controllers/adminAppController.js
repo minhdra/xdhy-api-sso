@@ -43,9 +43,15 @@ let AdminAppController = class AdminAppController {
             if (!app)
                 throw new AppError_1.AppError(404, 'Không tìm thấy ứng dụng.');
             (0, appIconUpload_1.assertAppIcon)(req.file);
-            const icon = `/api-sso/uploads/app-icons/${app_id}.png`;
-            await (0, appIconUpload_1.saveAppIcon)(app_id, req.file.buffer);
-            await this.appService.setAppIcon(app_id, icon, req.userId);
+            const icon = await (0, appIconUpload_1.saveAppIcon)(app_id, req.file.buffer);
+            try {
+                await this.appService.setAppIcon(app_id, icon, req.userId);
+            }
+            catch (error) {
+                await (0, appIconUpload_1.removeAppIcon)(app_id, app.icon ?? undefined).catch(() => undefined);
+                throw error;
+            }
+            await (0, appIconUpload_1.removeAppIcon)(app_id, icon).catch((error) => console.warn('App icon cleanup failed:', error));
             res.json({ success: true, icon });
         }
         catch (error) {
