@@ -9,6 +9,7 @@ export interface SsoApp {
   description: string | null;
   url: string;
   color: string;
+  icon: string | null;
 }
 
 export interface SsoAppAdmin extends SsoApp {
@@ -58,12 +59,25 @@ export class AppRepository {
       `CALL "a_ListAppsForUser"($1, NULL, NULL, NULL)`,
       [userId],
     );
-    return result.rows as SsoApp[];
+    return this.attachIcons(result.rows as SsoApp[]);
   }
 
   async adminList(): Promise<SsoAppAdmin[]> {
     const result = await this.db.queryList(`CALL "a_AdminListApps"(NULL, NULL, NULL)`, []);
-    return result.rows as SsoAppAdmin[];
+    return this.attachIcons(result.rows as SsoAppAdmin[]);
+  }
+
+  private async attachIcons<T extends SsoApp>(apps: T[]): Promise<T[]> {
+    if (apps.length === 0) return apps;
+    const result = await this.db.queryList(`CALL "a_ListAppIcons"(NULL, NULL, NULL)`, []);
+    const icons = new Map<string, string | null>(
+      (result.rows as { app_id: string; icon: string | null }[]).map((row) => [row.app_id, row.icon]),
+    );
+    return apps.map((app) => ({ ...app, icon: icons.get(app.app_id) ?? null }));
+  }
+
+  async adminSetIcon(appId: string, icon: string, actorUserId: string): Promise<void> {
+    await this.db.query(`CALL "a_AdminSetAppIcon"($1, $2, $3, NULL, NULL, NULL)`, [appId, icon, actorUserId]);
   }
 
   async adminUpsert(app: {

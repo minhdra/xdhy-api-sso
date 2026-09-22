@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { container } from 'tsyringe';
 
+import { appIconUpload } from '../config/appIconUpload';
 import { AdminAppController } from '../controllers/adminAppController';
 import { requireAuth } from '../middlewares/auth';
 import { requireAdmin } from '../middlewares/requireAdmin';
@@ -45,6 +46,18 @@ adminAppRouter.post(
     responses: { 200: { description: 'Đã lưu' }, 400: { description: 'Mã ứng dụng đã tồn tại' } },
   }),
   controller.upsertApp.bind(controller),
+);
+
+adminAppRouter.post(
+  '/admin/apps/:app_id/icon',
+  ...defineRoute({
+    method: 'post', path: '/admin/apps/{app_id}/icon', tags,
+    summary: 'Tải icon PNG 46 × 46, tối đa 1MB',
+    schema: { params: appIdParamSchema },
+    responses: { 200: { description: 'Đã lưu icon' }, 400: { description: 'Ảnh không hợp lệ' } },
+  }),
+  appIconUpload,
+  controller.uploadIcon.bind(controller),
 );
 
 adminAppRouter.post(

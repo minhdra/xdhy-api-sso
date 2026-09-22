@@ -11,6 +11,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminAppController = void 0;
 const tsyringe_1 = require("tsyringe");
+const appIconUpload_1 = require("../config/appIconUpload");
+const AppError_1 = require("../errors/AppError");
 const appService_1 = require("../services/appService");
 let AdminAppController = class AdminAppController {
     constructor(appService) {
@@ -34,10 +36,27 @@ let AdminAppController = class AdminAppController {
             next(error);
         }
     }
+    async uploadIcon(req, res, next) {
+        try {
+            const { app_id } = req.params;
+            const app = (await this.appService.adminList()).find((item) => item.app_id === app_id);
+            if (!app)
+                throw new AppError_1.AppError(404, 'Không tìm thấy ứng dụng.');
+            (0, appIconUpload_1.assertAppIcon)(req.file);
+            const icon = `/api-sso/uploads/app-icons/${app_id}.png`;
+            await (0, appIconUpload_1.saveAppIcon)(app_id, req.file.buffer);
+            await this.appService.setAppIcon(app_id, icon, req.userId);
+            res.json({ success: true, icon });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
     async deleteApp(req, res, next) {
         try {
             const { app_id } = req.body;
             await this.appService.deleteApp(app_id, req.userId);
+            await (0, appIconUpload_1.removeAppIcon)(app_id);
             res.json({ success: true, message: 'Đã xoá ứng dụng.' });
         }
         catch (error) {

@@ -32,11 +32,21 @@ let AppRepository = class AppRepository {
     }
     async listForUser(userId) {
         const result = await this.db.queryList(`CALL "a_ListAppsForUser"($1, NULL, NULL, NULL)`, [userId]);
-        return result.rows;
+        return this.attachIcons(result.rows);
     }
     async adminList() {
         const result = await this.db.queryList(`CALL "a_AdminListApps"(NULL, NULL, NULL)`, []);
-        return result.rows;
+        return this.attachIcons(result.rows);
+    }
+    async attachIcons(apps) {
+        if (apps.length === 0)
+            return apps;
+        const result = await this.db.queryList(`CALL "a_ListAppIcons"(NULL, NULL, NULL)`, []);
+        const icons = new Map(result.rows.map((row) => [row.app_id, row.icon]));
+        return apps.map((app) => ({ ...app, icon: icons.get(app.app_id) ?? null }));
+    }
+    async adminSetIcon(appId, icon, actorUserId) {
+        await this.db.query(`CALL "a_AdminSetAppIcon"($1, $2, $3, NULL, NULL, NULL)`, [appId, icon, actorUserId]);
     }
     async adminUpsert(app) {
         return this.db.query(`CALL "a_AdminUpsertApp"($1,$2,$3,$4,$5,$6,$7,$8,NULL,NULL,NULL)`, [

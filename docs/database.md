@@ -16,7 +16,7 @@ quy tắc đầy đủ ở [`db/README.md`](../db/README.md).
 | `a_session` | Phiên đăng nhập thu hồi được | `session_id` (PK), `user_id`, `expires_at`, `revoked_at`, `remember` (audit lý do hạn dùng), `user_agent` (`varchar(512)` từ migration `0013`, `SessionRepository.createSession` tự cắt 512 ký tự — UA webview có thể dài hơn, không cắt thì `INSERT` lỗi và đăng nhập trả 500; token nhận diện app như `FBAN` nằm cuối UA nên không để giới hạn quá thấp)/`ip` (`varchar(64)`, cũng cắt) |
 | `a_refresh_token` | Refresh token gắn với 1 `a_session` | `jti` (PK), `session_id`, `expires_at`, `revoked_at`, `rotated_to` (để sẵn cho rotation — **chưa bật**) |
 | `a_password_reset_token` | Token "quên mật khẩu" 1 lần | `token_hash` (PK, SHA-256 — **không lưu token thật**), `expires_at` (1 giờ), `used_at` |
-| `a_app` | Danh sách app hiển thị ở trang chủ `sso-web` (thay config tĩnh cũ) | `app_id` (PK), `app_key` (slug, unique **có điều kiện** `WHERE active_flag=1`), `app_name`, `url`, `color`, `sort_order`, `active_flag` (soft-delete) |
+| `a_app` | Danh sách app hiển thị ở trang chủ `sso-web` (thay config tĩnh cũ) | `app_id` (PK), `app_key` (slug, unique **có điều kiện** `WHERE active_flag=1`), `app_name`, `url`, `color`, `icon`, `sort_order`, `active_flag` (soft-delete) |
 | `a_app_access` | Cấp quyền truy cập app theo **từng người** | `(app_id, user_id)` PK kép — không cấp theo role |
 
 `a_session`/`a_refresh_token` là 2 bảng **đầu tiên** của `api-sso` (milestone sandbox ban đầu) — thao
@@ -62,6 +62,8 @@ unwrap 3 `OUT` này thống nhất.
 | `a_UserHasAppAccess(user_id, app_key)` — **FUNCTION** | 0006 | `true` nếu admin, hoặc có dòng `a_app_access` khớp `app_key` (app phải `active_flag=1`). Dùng ở `GET /me?app=` — chốt chặn thật, không chỉ ẩn/hiện UI, xem `api.md` |
 | `a_ListAppsForUser(user_id)` | 0005 | Admin thấy mọi app active; người khác chỉ thấy app có trong `a_app_access` |
 | `a_AdminListApps()` | 0005, 0011 | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count`; chỉ đếm hồ sơ active |
+| `a_ListAppIcons()` | 0015 | Trả đường dẫn icon của các app active để ghép vào danh sách app. |
+| `a_AdminSetAppIcon(app_id, icon, lu_user_id)` | 0015 | Ghi đường dẫn icon vào `a_app.icon` sau upload. |
 | `a_AdminUpsertApp(app_id, app_key, app_name, description, url, color, sort_order, lu_user_id)` | 0005 | `app_id` rỗng = tạo mới (check trùng `app_key`); có giá trị = cập nhật |
 | `a_AdminDeleteApp(app_id, lu_user_id)` | 0005 | Xoá mềm `a_app` + xoá cứng toàn bộ `a_app_access` liên quan |
 | `a_AdminListAppAccess(app_id)` | 0005 | JOIN ra tên/chức vụ người đã được cấp |

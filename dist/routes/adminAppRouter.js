@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const tsyringe_1 = require("tsyringe");
+const appIconUpload_1 = require("../config/appIconUpload");
 const adminAppController_1 = require("../controllers/adminAppController");
 const auth_1 = require("../middlewares/auth");
 const requireAdmin_1 = require("../middlewares/requireAdmin");
@@ -28,6 +29,12 @@ adminAppRouter.post('/admin/apps', ...(0, defineRoute_1.defineRoute)({
     schema: { body: adminApp_schema_1.upsertAppSchema },
     responses: { 200: { description: 'Đã lưu' }, 400: { description: 'Mã ứng dụng đã tồn tại' } },
 }), controller.upsertApp.bind(controller));
+adminAppRouter.post('/admin/apps/:app_id/icon', ...(0, defineRoute_1.defineRoute)({
+    method: 'post', path: '/admin/apps/{app_id}/icon', tags,
+    summary: 'Tải icon PNG 46 × 46, tối đa 1MB',
+    schema: { params: adminApp_schema_1.appIdParamSchema },
+    responses: { 200: { description: 'Đã lưu icon' }, 400: { description: 'Ảnh không hợp lệ' } },
+}), appIconUpload_1.appIconUpload, controller.uploadIcon.bind(controller));
 adminAppRouter.post('/admin/apps/delete', ...(0, defineRoute_1.defineRoute)({
     method: 'post',
     path: '/admin/apps/delete',

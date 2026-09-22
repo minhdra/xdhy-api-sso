@@ -57,6 +57,14 @@ let AppService = class AppService {
             throw toAppError(error);
         }
     }
+    async setAppIcon(appId, icon, actorUserId) {
+        try {
+            await this.appRepository.adminSetIcon(appId, icon, actorUserId);
+        }
+        catch (error) {
+            throw toAppError(error);
+        }
+    }
     async deleteApp(appId, actorUserId) {
         try {
             await this.appRepository.adminDelete(appId, actorUserId);

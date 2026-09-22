@@ -1,6 +1,8 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import { injectable } from 'tsyringe';
 
+import { assertAppIcon, removeAppIcon, saveAppIcon } from '../config/appIconUpload';
+import { AppError } from '../errors/AppError';
 import { AppService } from '../services/appService';
 import {
   type AppAccessCandidatesQuery,
@@ -33,10 +35,24 @@ export class AdminAppController {
     }
   }
 
+  async uploadIcon(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { app_id } = req.params as unknown as AppIdParam;
+      const app = (await this.appService.adminList()).find((item) => item.app_id === app_id);
+      if (!app) throw new AppError(404, 'Không tìm thấy ứng dụng.');
+      assertAppIcon(req.file);
+      const icon = `/api-sso/uploads/app-icons/${app_id}.png`;
+      await saveAppIcon(app_id, req.file.buffer);
+      await this.appService.setAppIcon(app_id, icon, req.userId as string);
+      res.json({ success: true, icon });
+    } catch (error) { next(error); }
+  }
+
   async deleteApp(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { app_id } = req.body as DeleteAppInput;
       await this.appService.deleteApp(app_id, req.userId as string);
+      await removeAppIcon(app_id);
       res.json({ success: true, message: 'Đã xoá ứng dụng.' });
     } catch (error) {
       next(error);

@@ -67,6 +67,14 @@ export class AppService {
     }
   }
 
+  async setAppIcon(appId: string, icon: string, actorUserId: string): Promise<void> {
+    try {
+      await this.appRepository.adminSetIcon(appId, icon, actorUserId);
+    } catch (error) {
+      throw toAppError(error);
+    }
+  }
+
   async deleteApp(appId: string, actorUserId: string): Promise<void> {
     try {
       await this.appRepository.adminDelete(appId, actorUserId);

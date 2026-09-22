@@ -19,6 +19,7 @@ Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng,
 | 0011 | `0011_admin_app_access_delta.sql` | Count quyền trực tiếp/đủ điều kiện/hiệu lực, danh sách ứng viên có lọc + phân trang, và proc cộng/gỡ quyền idempotent theo delta. |
 | 0012 | `0012_cleanup_indexes.sql` | Index theo thời hạn/thu hồi cho job tự động dọn session, refresh token và password-reset token cũ. |
 | 0013 | `0013_a_session_user_agent_512.sql` | Nâng `a_session.user_agent` từ `varchar(255)` lên `varchar(512)` (chỉ đổi metadata, không rewrite bảng). UA webview dài 300-400 ký tự và token nhận diện app (FBAN/FBAV) nằm cuối chuỗi — cắt ở 255 làm mất token. **Chạy TRƯỚC khi deploy code cắt 512 ký tự.** Đã áp dụng lên DB thật 20/09/2026. |
+| 0015 | `0015_app_icon.sql` | Thêm `a_app.icon` và hai procedure `a_ListAppIcons`, `a_AdminSetAppIcon`; API đọc đường dẫn từ DB và cập nhật sau upload. |
 
 Bản sửa kiểm tra phiên bị thu hồi ngày 06/09/2026 chỉ thay đổi logic API/JWT và dùng các cột đã có (`session_id`, `user_id`, `revoked_at`, `expires_at`), vì vậy không phát sinh migration SQL mới.
 
