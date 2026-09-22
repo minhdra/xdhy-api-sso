@@ -62,7 +62,7 @@ tên vô tình tắt luôn kiểm tra.
 
 | Method | Path | Body | Việc gì |
 | --- | --- | --- | --- |
-| GET | `/admin/apps` | — | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count` |
+| GET | `/admin/apps` | — | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count`. Từ 0014: `direct_access_count` và `eligible_user_count` **loại admin** (tỉ lệ luôn ≤ 100%), `effective_access_count` vẫn tính admin |
 | POST | `/admin/apps` | `{ app_id?, app_key, app_name, description?, url?, color?, sort_order? }` | `app_id` rỗng/thiếu = tạo mới; có giá trị = cập nhật. `app_key` trùng (còn active) → 400 |
 | POST | `/admin/apps/{app_id}/icon` | `multipart/form-data`, field `file` | Admin upload PNG 46 × 46, tối đa 1MB; lưu vào volume `uploads/app-icons` và ghi URL vào `a_app.icon`; GET `/apps` và `/admin/apps` đọc `icon` từ DB (URL hoặc `null`). Ảnh cũ được thay theo `app_id` |
 | POST | `/admin/apps/delete` | `{ app_id }` | Xoá mềm + xoá luôn toàn bộ quyền đã cấp trên app đó |
@@ -71,7 +71,7 @@ tên vô tình tắt luôn kiểm tra.
 | GET | `/admin/apps/{app_id}/access-candidates` | `q?`, `position_id?`, `page?`, `page_size?` | User active chưa có quyền hiệu lực; loại admin và grant đã tồn tại; trả `{ rows, total, page, page_size }` |
 | POST | `/admin/apps/{app_id}/access/add` | `{ user_ids: string[] }` | Cộng quyền theo delta, idempotent; trả `affected` thực tế |
 | POST | `/admin/apps/{app_id}/access/remove` | `{ user_ids: string[] }` | Gỡ quyền theo delta, idempotent; trả `affected` thực tế |
-| GET | `/admin/users` | — | Danh sách user active (cho ô chọn multi-select ở trang quản trị) |
+| GET | `/admin/users` | — | Danh sách user active **trừ admin** (role `sa` bypass mọi app nên không cần/không được cấp quyền — khớp `access-candidates`) cho modal quyền ở trang quản trị |
 
 ## Nội bộ (`/internal/*`) — server-to-server, KHÔNG qua gateway, KHÔNG JWT
 

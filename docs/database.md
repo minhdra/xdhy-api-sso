@@ -61,14 +61,14 @@ unwrap 3 `OUT` này thống nhất.
 | `a_IsUserAdmin(user_id)` — **FUNCTION**, không phải procedure | 0005 | `true` nếu có role active `role_code='sa'`. Gọi qua `SELECT`, không phải `CALL` |
 | `a_UserHasAppAccess(user_id, app_key)` — **FUNCTION** | 0006 | `true` nếu admin, hoặc có dòng `a_app_access` khớp `app_key` (app phải `active_flag=1`). Dùng ở `GET /me?app=` — chốt chặn thật, không chỉ ẩn/hiện UI, xem `api.md` |
 | `a_ListAppsForUser(user_id)` | 0005 | Admin thấy mọi app active; người khác chỉ thấy app có trong `a_app_access` |
-| `a_AdminListApps()` | 0005, 0011 | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count`; chỉ đếm hồ sơ active |
+| `a_AdminListApps()` | 0005, 0011, 0014 | Toàn bộ app active kèm `direct_access_count`, `eligible_user_count`, `effective_access_count`; chỉ đếm hồ sơ active. 0014: `direct`/`eligible` loại admin `sa` (tỉ lệ ≤ 100%), `effective` vẫn tính admin |
 | `a_ListAppIcons()` | 0015 | Trả đường dẫn icon của các app active để ghép vào danh sách app. |
 | `a_AdminSetAppIcon(app_id, icon, lu_user_id)` | 0015 | Ghi đường dẫn icon vào `a_app.icon` sau upload. |
 | `a_AdminUpsertApp(app_id, app_key, app_name, description, url, color, sort_order, lu_user_id)` | 0005 | `app_id` rỗng = tạo mới (check trùng `app_key`); có giá trị = cập nhật |
 | `a_AdminDeleteApp(app_id, lu_user_id)` | 0005 | Xoá mềm `a_app` + xoá cứng toàn bộ `a_app_access` liên quan |
-| `a_AdminListAppAccess(app_id)` | 0005 | JOIN ra tên/chức vụ người đã được cấp |
+| `a_AdminListAppAccess(app_id)` | 0005, 0008, 0014 | JOIN ra tên/chức vụ người đã được cấp, loại admin (0007 từng seed cả admin vào `a_app_access`, dòng đó vô nghĩa vì admin bypass) |
 | `a_AdminSetAppAccess(app_id, user_ids jsonb, lu_user_id)` | 0005 | **Thay toàn bộ** tập quyền (`DELETE` rồi `INSERT` lại), không cộng/trừ từng dòng |
-| `a_AdminListUsers()` | 0005 | User active cho ô chọn multi-select |
+| `a_AdminListUsers()` | 0005, 0008, 0014 | User active **trừ admin `sa`** cho modal quyền (0014 thêm loại admin) |
 | `a_AdminListAppAccessCandidates(app_id, keyword, position_id, page, page_size)` | 0011 | User active chưa có grant, loại admin bypass; tìm theo tên/tài khoản, lọc chức vụ và phân trang |
 | `a_AdminAddAppAccess(app_id, user_ids jsonb, lu_user_id)` | 0011 | Cộng grant hợp lệ theo delta, idempotent; bỏ qua user inactive/admin/đã có quyền |
 | `a_AdminRemoveAppAccess(app_id, user_ids jsonb)` | 0011 | Gỡ đúng các grant được chỉ định, idempotent |
