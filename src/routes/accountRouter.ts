@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { container } from 'tsyringe';
 
-import { avatarUpload, resolveAvatarUploadOwner } from '../config/avatarUpload';
+import { avatarUpload } from '../config/avatarUpload';
 import { AccountController } from '../controllers/accountController';
 import { requireAuth } from '../middlewares/auth';
 import { defineRoute } from '../openapi/defineRoute';
@@ -67,7 +67,6 @@ accountRouter.post(
       400: { description: 'File không hợp lệ' },
     },
   }),
-  resolveAvatarUploadOwner,
   avatarUpload,
   accountController.uploadAvatar.bind(accountController),
 );

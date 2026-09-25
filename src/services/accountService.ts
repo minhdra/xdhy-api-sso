@@ -2,7 +2,7 @@ import { injectable } from 'tsyringe';
 
 import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { AppError } from '../errors/AppError';
-import { resyncProfile } from '../integrations/coreClient';
+import { resyncProfile, uploadAvatar } from '../integrations/coreClient';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, verifyPassword } from '../utilities/password';
@@ -48,11 +48,10 @@ export class AccountService {
     void resyncProfile(userId);
   }
 
-  // Trả về URL avatar mới để FE cập nhật ngay.
-  async setAvatar(userId: string, avatarUrl: string): Promise<string> {
-    await this.userRepository.setAvatar(userId, avatarUrl, userId);
-    void resyncProfile(userId);
-    return avatarUrl;
+  // api-core lưu file + ghi DB + đồng bộ downstream (xem coreClient.uploadAvatar).
+  // Trả về URL public của avatar mới để FE cập nhật ngay.
+  async setAvatar(userId: string, file: Express.Multer.File): Promise<string | null> {
+    return toPublicAvatarUrl(await uploadAvatar(userId, file));
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {

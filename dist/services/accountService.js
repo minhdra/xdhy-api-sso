@@ -47,11 +47,10 @@ let AccountService = class AccountService {
         });
         void (0, coreClient_1.resyncProfile)(userId);
     }
-    // Trả về URL avatar mới để FE cập nhật ngay.
-    async setAvatar(userId, avatarUrl) {
-        await this.userRepository.setAvatar(userId, avatarUrl, userId);
-        void (0, coreClient_1.resyncProfile)(userId);
-        return avatarUrl;
+    // api-core lưu file + ghi DB + đồng bộ downstream (xem coreClient.uploadAvatar).
+    // Trả về URL public của avatar mới để FE cập nhật ngay.
+    async setAvatar(userId, file) {
+        return (0, avatarUpload_1.toPublicAvatarUrl)(await (0, coreClient_1.uploadAvatar)(userId, file));
     }
     async changePassword(userId, oldPassword, newPassword) {
         const currentHash = await this.userRepository.getPasswordHash(userId);

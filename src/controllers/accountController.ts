@@ -1,7 +1,6 @@
 import { type NextFunction, type Request, type Response } from 'express';
 import { injectable } from 'tsyringe';
 
-import { toAvatarUrl } from '../config/avatarUpload';
 import { REFRESH_COOKIE } from '../config/cookie';
 import { verifyToken } from '../config/jwt';
 import { AppError } from '../errors/AppError';
@@ -62,7 +61,7 @@ export class AccountController {
       if (!req.file) {
         throw new AppError(400, 'Chưa chọn ảnh.');
       }
-      const url = await this.accountService.setAvatar(req.userId as string, toAvatarUrl(req.file.path));
+      const url = await this.accountService.setAvatar(req.userId as string, req.file);
       res.json({ success: true, message: 'Đã cập nhật ảnh đại diện.', avatar: url });
     } catch (error) {
       next(error);

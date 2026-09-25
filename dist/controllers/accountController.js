@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AccountController = void 0;
 const tsyringe_1 = require("tsyringe");
-const avatarUpload_1 = require("../config/avatarUpload");
 const cookie_1 = require("../config/cookie");
 const jwt_1 = require("../config/jwt");
 const AppError_1 = require("../errors/AppError");
@@ -67,7 +66,7 @@ let AccountController = class AccountController {
             if (!req.file) {
                 throw new AppError_1.AppError(400, 'Chưa chọn ảnh.');
             }
-            const url = await this.accountService.setAvatar(req.userId, (0, avatarUpload_1.toAvatarUrl)(req.file.path));
+            const url = await this.accountService.setAvatar(req.userId, req.file);
             res.json({ success: true, message: 'Đã cập nhật ảnh đại diện.', avatar: url });
         }
         catch (error) {

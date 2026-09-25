@@ -40,7 +40,7 @@ discovery) — service khác verify JWT bằng key ở đây (package `jwks-rsa`
 | --- | --- | --- | --- |
 | GET | `/account/profile` | — | Hồ sơ đầy đủ: cá nhân + `position_name`/`department_name`/`branch_name` + `is_admin` |
 | PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type`. Sau khi ghi `build_management` → gọi `POST {CORE_INTERNAL_URL}/internal/users/profile-resync` (non-blocking) để api-core đồng bộ xuống task + chat + meeting |
-| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. Lưu tại `uploads/avatars/<username>--<user_id>/<uuid>.<ext>`, trả `{ avatar: "/api-sso/uploads/avatars/..." }`. Cũng gọi profile-resync như trên |
+| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. api-sso **không lưu file** (từ 25/09/2026): chuyển tiếp sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar`, api-core lưu bằng `UploadService` chung (format path của api-core `uploads/yyyy-mm-dd/<tên>-<số>.<ext>`) + ghi DB + tự đồng bộ task/chat/meeting. Trả `{ avatar: "/api/api-core/uploads/yyyy-mm-dd/..." }`. Lỗi api-core → 400/404 nguyên văn, còn lại 502; thiếu `CORE_INTERNAL_SECRET` → 503 |
 | POST | `/account/change-password` | `{ oldPassword, newPassword }` | Verify mật khẩu cũ bằng bcrypt trước khi đổi |
 | GET | `/account/sessions` | — | Danh sách phiên đang hoạt động, cờ `current` cho phiên gọi request này |
 | POST | `/account/sessions/revoke` | `{ session_id }` | Không thu hồi được **chính phiên hiện tại** (dùng `/logout`) |

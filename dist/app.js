@@ -98,7 +98,8 @@ app.use(express_1.default.urlencoded({ extended: true, limit: config_1.config.bo
 app.get('/.well-known/jwks.json', (_req, res) => {
     res.json({ keys: [(0, jwt_1.getJwk)()] });
 });
-// Ảnh đại diện user upload (multer ghi vào uploads/avatars/<user_id>/). Gateway rewrite
+// Icon app + avatar CŨ (từ 25/09/2026 avatar mới lưu ở api-core, api-sso chỉ
+// còn serve file "/api-sso/uploads/avatars/..." cũ). Gateway rewrite
 // /api/api-sso/uploads/* -> /api-sso/uploads/*. Không cần auth để xem ảnh.
 // Tên file icon/avatar mới có UUID và không bị ghi đè, nên cache dài hạn an toàn.
 app.use('/api-sso/uploads/app-icons', express_1.default.static('uploads/app-icons', { maxAge: '1y', immutable: true }));

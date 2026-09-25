@@ -127,10 +127,6 @@ let UserRepository = class UserRepository {
     async getAccountProfile(user_id) {
         return this.db.query(`CALL "a_GetAccountProfile"($1, NULL, NULL, NULL)`, [user_id]);
     }
-    // Avatar sửa riêng (upload file). Proc "a_SetAvatar".
-    async setAvatar(user_id, avatar_url, lu_user_id) {
-        await this.db.query(`CALL "a_SetAvatar"($1, $2, $3, NULL, NULL, NULL)`, [user_id, avatar_url, lu_user_id]);
-    }
     // Cập nhật các field hồ sơ tự phục vụ (chỉ những field user được sửa). Proc
     // "a_UpdateSelfProfile" - KHÔNG dùng "UpdateUser" của api-core (proc đó set
     // cả branch/department/position/type nên phải nạp lại hết rồi merge, dễ vỡ).

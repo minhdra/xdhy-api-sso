@@ -97,14 +97,19 @@ service khác (`api-task-management`/`api-gateway` verify JWT xong là xong, kh�
 
 ## Upload avatar
 
-`multer` diskStorage ghi `uploads/avatars/<username>--<user_id>/<uuid>.<ext>` (chỉ ảnh, ≤5MB —
-`config/avatarUpload.ts`). Username giúp nhận diện nhanh, còn `user_id` được encode thành một path segment
-ổn định để tránh trùng/đổi tên; UUID là tên vật lý bất biến và tên gốc không được dùng. Avatar cũ tại
-`uploads/avatars/<filename>` vẫn được serve để tương thích. Serve
-lại qua `express.static('uploads')` mount ở `/api-sso/uploads`. Lưu
-**local disk trong container** — mất khi container bị recreate (không volume riêng, không object
-storage) — chấp nhận được cho quy mô hiện tại, xem giới hạn tương tự ở
-`api-task-management/docs/technical_decisions.md` (upload local disk).
+Từ 25/09/2026 **api-core là nơi duy nhất lưu file avatar**. api-sso `multer` memoryStorage (chỉ ảnh,
+≤5MB — `config/avatarUpload.ts`) rồi `integrations/coreClient.ts` `uploadAvatar()` chuyển tiếp multipart
+sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar` (header `X-Internal-Secret` =
+`CORE_INTERNAL_SECRET`). api-core lưu bằng `UploadService` chung — **giữ nguyên format path của
+api-core** (`uploads/yyyy-mm-dd/<tên>-<số>.<ext>`, backslash trên Windows), gọi `a_SetAvatar`, dọn file
+cũ, đồng bộ task/chat/meeting; trả path thô → api-sso `toPublicAvatarUrl()` →
+`/api/api-core/uploads/...`. api-sso không còn ghi DB avatar, không gọi
+`resyncProfile` cho avatar.
+
+**Tương thích dữ liệu cũ:** record `/api-sso/uploads/avatars/...` (upload trước 25/09/2026) vẫn được
+serve qua `express.static` ở `/api-sso/uploads` và job dọn orphan vẫn quét `uploads/avatars` của api-sso
+(xoá file cũ khi user đổi avatar mới). Không migrate — khi thư mục `api-sso/uploads/avatars` rỗng có thể
+gỡ static avatar + phần dọn avatar của cleanup job.
 
 ## Validate + OpenAPI
 

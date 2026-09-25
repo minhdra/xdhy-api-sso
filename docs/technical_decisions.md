@@ -166,3 +166,15 @@ không có cấp user vẫn tương thích) và
 ## Icon ứng dụng: URL mới cho mỗi lần cập nhật (22/09/2026)
 
 Icon upload là PNG 138 × 138 (3 lần kích thước hiển thị 46 px) để sắc nét trên màn hình mật độ cao. File giới hạn 1MB, có UUID trong tên; `a_app.icon` lưu URL mới. Sau khi DB ghi thành công, API dọn file cũ. Tên mới tránh trình duyệt dùng lại ảnh đã cache khi admin đóng modal. Static icon/avatar dùng `Cache-Control: max-age=31536000, immutable` vì file UUID không bị ghi đè. Avatar được client cắt về 400 × 400 và nén WebP trước khi upload; API avatar vẫn nhận các định dạng cũ cho client khác.
+
+## Avatar lưu ở api-core, api-sso chỉ chuyển tiếp (25/09/2026)
+
+**Bối cảnh:** api-sso tự lưu avatar (`/api-sso/uploads/avatars/...`) trong khi api-core (quản lý người
+dùng) cũng lưu avatar (`uploads/...`). 2 nơi lưu, 2 dạng path → task/chat/meeting và các FE phải hiểu cả
+hai, file nằm rải 2 server. **Chọn:** api-core là nơi duy nhất lưu file + ghi `user_profiles.avatar`
+(`POST /internal/users/:userId/avatar`, cùng secret `CORE_INTERNAL_SECRET` đã có), path giữ nguyên format
+`UploadService` của api-core — user chốt không đổi format/không sửa nhiều api-core. api-sso giữ endpoint
+`POST /account/avatar` (auth + validate) rồi forward multipart. **Không chọn** cho sso-web upload thẳng
+`/api/api-core/upload`: endpoint đó chung cho mọi file, không gắn user, không ghi DB, và sso-web phải gọi
+thêm 1 bước lưu path → user có thể gán path bất kỳ. **Đánh đổi:** ảnh đi 2 chặng (≤5MB, chấp nhận được);
+api-core down thì không đổi được avatar (báo 502 thay vì lưu tạm ở sso).

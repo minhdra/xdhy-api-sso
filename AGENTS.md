@@ -63,6 +63,9 @@ phần "Trước khi đoán" và "Vận hành", 2 mục dễ gây sai lầm tố
   tên cột thật trong DB trước khi viết SQL/proc mới — không có migration tool đọc schema từ code, tra
   trực tiếp DB (cách ở [`docs/database.md`](./docs/database.md) mục "Điều tra DB trực tiếp" — dùng `pg`
   qua `.env`, chỉ `SELECT`/`pg_get_functiondef()`).
+- **File của user (avatar...) KHÔNG lưu ở api-sso** — api-core là nơi duy nhất lưu file + ghi
+  `user_profiles.avatar`; api-sso chỉ validate rồi chuyển tiếp (`integrations/coreClient.ts`
+  `uploadAvatar`). `uploads/` của api-sso chỉ còn icon app + avatar cũ (25/09/2026).
 
 ## Sau khi sửa xong
 

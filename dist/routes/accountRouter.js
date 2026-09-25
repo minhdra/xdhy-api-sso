@@ -43,7 +43,7 @@ accountRouter.post('/account/avatar', ...(0, defineRoute_1.defineRoute)({
         200: { description: 'Đã cập nhật avatar - trả URL mới' },
         400: { description: 'File không hợp lệ' },
     },
-}), avatarUpload_1.resolveAvatarUploadOwner, avatarUpload_1.avatarUpload, accountController.uploadAvatar.bind(accountController));
+}), avatarUpload_1.avatarUpload, accountController.uploadAvatar.bind(accountController));
 accountRouter.post('/account/change-password', ...(0, defineRoute_1.defineRoute)({
     method: 'post',
     path: '/account/change-password',

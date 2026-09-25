@@ -4,7 +4,6 @@ declare global {
     interface Request {
       userId?: string;
       sessionId?: string;
-      avatarUsername?: string;
     }
   }
 }
