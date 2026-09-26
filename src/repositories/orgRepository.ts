@@ -8,7 +8,8 @@ export interface PagedRows<T = any> {
 }
 
 // Quản trị user/tổ chức/nhóm quyền trên sso_management - mọi thao tác GHI đi
-// qua stored procedure (bản copy nguyên văn từ build_management, xem
+// qua stored procedure. Bộ lọc Search* không dùng truyền NULL (không phải ''):
+// proc so `cột ILIKE '%' || p || '%'`, cột NULL với '' ra NULL -> mất dòng (bản copy nguyên văn từ build_management, xem
 // db/sso_management/0002_baseline_procs.sql), đúng chữ ký api-core từng gọi.
 @injectable()
 export class OrgRepository {
@@ -302,8 +303,8 @@ export class OrgRepository {
       p.pageSize,
       p.search_content,
       null,
-      '',
-      '',
+      null,
+      null,
     ]);
   }
 
@@ -346,8 +347,8 @@ export class OrgRepository {
       p.pageSize,
       p.search_content,
       null,
-      '',
-      '',
+      null,
+      null,
       null,
     ]);
   }

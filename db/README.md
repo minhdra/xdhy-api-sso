@@ -13,6 +13,7 @@
 > | `0003_delete_role_without_role_functions.sql` | `DeleteRole` chỉ xoá mềm `roles` (bảng tính năng thuộc từng app). |
 > | `0004_sync_outbox.sql` | Bảng `a_sync_outbox` - hàng đợi đồng bộ sang app. |
 > | `0005_delete_user_soft.sql` | `DeleteUser` xoá mềm + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, lỗi FK). |
+> | `0006_positions_without_rank_weight.sql` | `GetPositionDropdown`/`SearchPosition` bỏ tham chiếu `rank_weight` (cột không có ở sso_management). |
 
 Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng, index và stored procedure của module SSO. Không sửa trực tiếp database production mà không tạo migration tương ứng tại đây.
 
