@@ -73,6 +73,16 @@ export const config = {
   },
   // Trang "đổi mật khẩu" (sso-web) - link trong email trỏ về đây kèm ?token=.
   frontendResetUrl: requireEnv('FRONTEND_RESET_URL'),
+  // Render thẻ meta/Open Graph của sso-web từ DB (GET /render-page, 26/09/2026):
+  // templateUrl = file index.template.html của bản build sso-web (URL nội bộ
+  // api-sso gọi được, vd http://sso-web/index.template.html). Trống = tắt
+  // (endpoint trả 503, nginx sso-web tự rơi về index.html tĩnh).
+  // publicUrl = origin sso-web cho og:url/og:image - mặc định lấy origin của
+  // FRONTEND_RESET_URL.
+  ssoWeb: {
+    templateUrl: env('SSO_WEB_TEMPLATE_URL', ''),
+    publicUrl: (env('SSO_WEB_PUBLIC_URL', '') || new URL(requireEnv('FRONTEND_RESET_URL')).origin).replace(/\/+$/, ''),
+  },
   rateLimit: {
     windowMs: env.int('RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),
     max: env.int('RATE_LIMIT_MAX', 300),

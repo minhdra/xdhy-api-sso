@@ -146,3 +146,12 @@ bộ theo user), `POST user-roles/clear` `{user_id, updated_by_id}`, `POST {bran
 Tắt 1 đích: để trống secret hoặc `SYNC_DISABLED_TARGETS=finance,...` (dùng khi app đó chạy độc lập
 `STANDALONE_ORG_ADMIN=true`).
 
+## Thương hiệu (26/09/2026)
+
+| Method | Path | Quyền | Việc gì |
+| --- | --- | --- | --- |
+| GET | `/branding` | công khai | Thông tin thương hiệu (`a_org_setting`), ảnh đã là URL tải được (`null` = file mặc định sso-web). `Cache-Control: max-age=60`, cache bộ nhớ 60s |
+| PUT | `/admin/branding` | admin | `{ org_name, short_name, app_name, tagline?, login_heading?, login_description?, primary_color (#RRGGBB), footer_text? ({year} = năm hiện tại), footer_links: [{label, url (http(s):// hoặc /)}] ≤8 }` |
+| POST | `/admin/branding/{kind}` | admin | multipart `file`; `kind` = `logo_light` \| `logo_dark` (png/jpg/webp ≤2MB) \| `favicon` (png/ico ≤512KB) \| `login_background` (≤5MB). **Không nhận SVG** (cùng origin sso-web → XSS). Lưu `uploads/branding/<kind>-<uuid>.<ext>`, xoá file cũ |
+| DELETE | `/admin/branding/{kind}` | admin | Về ảnh mặc định |
+| GET | `/render-page?path=` (hoặc header `X-Original-Path`) | công khai | `index.html` của sso-web (khuôn `SSO_WEB_TEMPLATE_URL`, cache 5 phút) với khối `<!-- branding-meta:start/end -->` thay bằng title/description/Open Graph/favicon lấy từ DB - để bot xem trước link (không chạy JS) thấy đúng thương hiệu. nginx/IIS sso-web gọi cho mọi request trang; bỏ header CSP của API. Chưa cấu hình khuôn → 503 (nginx rơi về `index.html` tĩnh) |

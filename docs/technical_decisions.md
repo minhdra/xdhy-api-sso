@@ -208,3 +208,13 @@ ra vẫn chạy độc lập (có người dùng/tổ chức/tính năng riêng)
 vẫn chạy độc lập". Đánh đổi: 2 dạng path cùng tồn tại (api-core cũ + SSO mới) — FE các app phải nhận cả
 2 (`resolveUploadUrl`).
 
+## Thương hiệu lưu DB + render meta phía server (26/09/2026)
+
+**Chọn:** thông tin thương hiệu SSO (tên, logo, màu, footer) ở `a_org_setting`, sso-web đọc `GET /branding`
+lúc chạy; thẻ meta/Open Graph render phía server (`/render-page`) chứ không chỉ JS. **Vì sao:** mỗi công ty
+là 1 triển khai riêng, đổi thương hiệu không được đòi sửa code/build lại. Bot xem trước link (Zalo/Facebook)
+không chạy JS - chỉ đổi `document.title` bằng JS thì link chia sẻ vẫn hiện tên cũ; biến build `VITE_*` thì
+lại phải build lại. Render ở api-sso dùng chính khuôn `index.template.html` của bản build sso-web (không
+copy HTML vào api-sso) nên hash bundle luôn khớp. Đánh đổi: trang HTML phụ thuộc api-sso — nginx có
+fallback về `index.html` tĩnh; IIS không có (api-sso chết thì cũng không đăng nhập được). Chỉ áp cho
+sso-web (task-web/build-web giữ thương hiệu riêng).
