@@ -6,12 +6,14 @@ import app from './app';
 import { config } from './config/config';
 import { Database } from './config/database';
 import { startDataCleanupJob } from './jobs/dataCleanupJob';
+import { startSyncOutboxJob } from './jobs/syncOutboxJob';
 
 app.set('port', config.port);
 const server = app.listen(app.get('port'), () => {
   console.log(`api-sso is running on port ${config.port}`);
 });
 const stopDataCleanupJob = startDataCleanupJob();
+const stopSyncOutboxJob = startSyncOutboxJob();
 
 let shuttingDown = false;
 
@@ -21,6 +23,7 @@ const gracefulShutdown = (signal: string) => {
 
   console.log(`Received ${signal}, closing server...`);
   stopDataCleanupJob();
+  stopSyncOutboxJob();
 
   const forceExitTimer = setTimeout(() => {
     console.error('Graceful shutdown timed out, forcing exit.');

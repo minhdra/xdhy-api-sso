@@ -2,10 +2,12 @@ import { injectable } from 'tsyringe';
 
 import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { AppError } from '../errors/AppError';
-import { resyncProfile, uploadAvatar } from '../integrations/coreClient';
+import { uploadAvatar } from '../integrations/coreClient';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, verifyPassword } from '../utilities/password';
+
+import { SyncService } from './syncService';
 
 export interface UpdateProfilePatch {
   full_name: string;
@@ -20,6 +22,7 @@ export class AccountService {
   constructor(
     private userRepository: UserRepository,
     private sessionRepository: SessionRepository,
+    private syncService: SyncService,
   ) {}
 
   // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
@@ -33,8 +36,7 @@ export class AccountService {
 
   // Chỉ đụng vào các field hồ sơ tự phục vụ - proc a_UpdateSelfProfile không
   // chạm branch/department/position/type. Avatar có endpoint upload riêng.
-  // Sau khi ghi build_management -> báo api-core đồng bộ xuống task + chat
-  // (non-blocking, xem integrations/coreClient.ts).
+  // Ghi sso_management xong -> outbox đồng bộ user sang các app (SyncService).
   async updateProfile(userId: string, patch: UpdateProfilePatch): Promise<void> {
     await this.userRepository.updateSelfProfile({
       user_id: userId,
@@ -45,13 +47,17 @@ export class AccountService {
       date_of_birth: patch.date_of_birth,
       lu_user_id: userId,
     });
-    void resyncProfile(userId);
+    await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
   }
 
-  // api-core lưu file + ghi DB + đồng bộ downstream (xem coreClient.uploadAvatar).
-  // Trả về URL public của avatar mới để FE cập nhật ngay.
+  // api-core CHỈ lưu file (+ dọn file cũ) rồi trả path thô; ghi
+  // user_profiles.avatar ở sso_management (nguồn chính) và đồng bộ user sang
+  // các app qua outbox. Trả về URL public của avatar mới để FE cập nhật ngay.
   async setAvatar(userId: string, file: Express.Multer.File): Promise<string | null> {
-    return toPublicAvatarUrl(await uploadAvatar(userId, file));
+    const avatar = await uploadAvatar(userId, file);
+    await this.userRepository.setAvatar(userId, avatar, userId);
+    await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
+    return toPublicAvatarUrl(avatar);
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {

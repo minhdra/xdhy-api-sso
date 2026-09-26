@@ -27,7 +27,7 @@ gọi qua tiền tố này (`sso-web/src/api.ts`), không gọi thẳng `api-sso
 | POST | `/login` | `{ username, password, remember? }` | `username` nhận tài khoản/email/số điện thoại. Set cookie `access_token`+`refresh_token`. Trả `{user_id, full_name, user_name, role_group}` |
 | POST | `/refresh` | — (đọc cookie `refresh_token`) | Cấp `access_token` mới nếu phiên chưa bị thu hồi/hết hạn |
 | POST | `/logout` | — | Thu hồi phiên (`a_session`) + xoá cả 2 cookie |
-| GET | `/me?app=<app_key>` | — | Thông tin user hiện tại + cây `functions`/`actions` (giống `api-core/users/me` cũ) + `is_admin`. Có `app` (app_key trong `a_app`) → **tự chặn 403** nếu user không có quyền app đó (admin luôn qua) — xem mục dưới |
+| GET | `/me?app=<app_key>` | — | Thông tin user hiện tại (danh tính, chức vụ) + `is_admin`. **Không còn `functions`/`actions`** (26/09/2026) — tính năng thuộc từng app: tài chính `GET /api-core/me/permissions`, công việc `GET /api-task/me/permissions`. Có `app` (app_key trong `a_app`) → **tự chặn 403** nếu user không có quyền app đó (admin luôn qua) — xem mục dưới |
 | POST | `/forgot-password` | `{ email }` | Luôn trả cùng 1 message dù email tồn tại hay không. Gửi email chứa link `?token=` |
 | POST | `/reset-password-confirm` | `{ token, newPassword }` | Token 1 lần, hạn 1 giờ |
 
@@ -39,8 +39,8 @@ discovery) — service khác verify JWT bằng key ở đây (package `jwks-rsa`
 | Method | Path | Body | Việc gì |
 | --- | --- | --- | --- |
 | GET | `/account/profile` | — | Hồ sơ đầy đủ: cá nhân + `position_name`/`department_name`/`branch_name` + `is_admin` |
-| PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type`. Sau khi ghi `build_management` → gọi `POST {CORE_INTERNAL_URL}/internal/users/profile-resync` (non-blocking) để api-core đồng bộ xuống task + chat + meeting |
-| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. api-sso **không lưu file** (từ 25/09/2026): chuyển tiếp sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar`, api-core lưu bằng `UploadService` chung (format path của api-core `uploads/yyyy-mm-dd/<tên>-<số>.<ext>`) + ghi DB + tự đồng bộ task/chat/meeting. Trả `{ avatar: "/api/api-core/uploads/yyyy-mm-dd/..." }`. Lỗi api-core → 400/404 nguyên văn, còn lại 502; thiếu `CORE_INTERNAL_SECRET` → 503 |
+| PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type`. Ghi `sso_management` rồi xếp đồng bộ user sang các app (`a_sync_outbox`) |
+| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. api-sso **không lưu file** (từ 25/09/2026): chuyển tiếp sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar`, api-core CHỈ lưu file bằng `UploadService` chung (format path của api-core `uploads/yyyy-mm-dd/<tên>-<số>.<ext>`) + dọn file cũ; api-sso ghi `user_profiles.avatar` ở `sso_management` rồi xếp đồng bộ user sang các app. Trả `{ avatar: "/api/api-core/uploads/yyyy-mm-dd/..." }`. Lỗi api-core → 400/404 nguyên văn, còn lại 502; thiếu `CORE_INTERNAL_SECRET` → 503 |
 | POST | `/account/change-password` | `{ oldPassword, newPassword }` | Verify mật khẩu cũ bằng bcrypt trước khi đổi |
 | GET | `/account/sessions` | — | Danh sách phiên đang hoạt động, cờ `current` cho phiên gọi request này |
 | POST | `/account/sessions/revoke` | `{ session_id }` | Không thu hồi được **chính phiên hiện tại** (dùng `/logout`) |
@@ -97,3 +97,51 @@ Lỗi nghiệp vụ từ stored procedure (`p_error_code !== 0`) làm `Database.
 cùng pattern `userRepository.resetPassword` bắt lỗi `"không đúng"` của `ResetPassword`). Không có quy ước
 mã lỗi cố định xuyên suốt (giống ghi chú ở `api-task-management/docs/database.md` mục "Quy ước stored
 procedure" — `-1` không phải "not found" toàn cục, tuỳ proc tự định nghĩa).
+
+## Quản trị người dùng / tổ chức / nhóm quyền (`/admin/org/*`) — chỉ admin (26/09/2026)
+
+Chuyển từ `api-core` (màn "Quản trị hệ thống" của build-web) sang SSO. `requireAuth` + `requireAdmin`.
+Người thao tác lấy từ phiên — **không** nhận `created_by_user_id`/`lu_user_id` từ body. Mọi thay đổi
+thành công đều xếp đồng bộ sang app (xem mục "Đồng bộ"). `pageIndex` bắt đầu từ **1** (proc `Search*`).
+
+| Method | Path | Body | Việc gì |
+| --- | --- | --- | --- |
+| POST | `/admin/org/users/search` | `{ pageIndex, pageSize, search_content?, branch_id?, department_id? }` | `{ totalItems, page, pageSize, pageCount, data }` (proc `SearchUser`, avatar đã thành URL) |
+| GET | `/admin/org/users/:user_id` | — | Chi tiết cho form sửa + `role_ids` |
+| POST | `/admin/org/users` | `{ user_name, password, full_name, email, phone_number?, gender?, date_of_birth?, branch_id, department_id, position_id, type?, description?, role_ids? }` | Tạo user (bcrypt, `user_id = employee_id = uuid`). 400 nếu trùng tên đăng nhập |
+| PUT | `/admin/org/users` | như trên + `user_id`, bỏ `user_name`/`password` | Sửa user; `role_ids` có mặt thì thay toàn bộ nhóm quyền. Không sửa avatar (user tự đổi) |
+| POST | `/admin/org/users/delete` | `{ user_ids }` | **Xoá mềm** (proc `DeleteUser` bản 0005): `active_flag=0` 4 bảng, thu hồi mọi phiên, gỡ quyền app. Không tự xoá chính mình |
+| POST | `/admin/org/users/lock` | `{ user_id, online_flag }` | `online_flag=1` = khoá (`GetUserByAccount` chỉ cho đăng nhập khi `0`) — khoá thì thu hồi luôn mọi phiên. Không tự khoá mình |
+| POST | `/admin/org/users/reset-password` | `{ user_id }` | Mật khẩu ngẫu nhiên (crypto), gửi email nếu có; trả `{ new_password, emailed }` cho admin |
+| PUT | `/admin/org/users/:user_id/roles` | `{ role_ids }` | Gán lại toàn bộ nhóm quyền (rỗng = gỡ hết). Admin không tự gỡ nhóm `sa` của mình |
+| POST | `/admin/org/{branches,departments,positions}/search` | `{ pageIndex, pageSize, search_content? }` | Danh sách phân trang |
+| GET | `/admin/org/{branches,departments,positions,roles}/dropdown` | — | `[{ label, value }]` |
+| POST | `/admin/org/{branches,departments,positions}` | `{ <x>_id?, <x>_name, phone?, fax?, address? }` / chức vụ `{ position_id?, position_name, description? }` | Id rỗng = thêm (identity) |
+| POST | `/admin/org/{branches,departments,positions}/delete` | `{ ids: number[] }` | Xoá mềm |
+| POST | `/admin/org/roles/search` | `{ pageIndex, pageSize, search_content? }` | Nhóm quyền |
+| POST | `/admin/org/roles` | `{ role_id?, role_code, role_name, description? }` | 400 nếu trùng mã; không đổi được mã của nhóm `sa` |
+| POST | `/admin/org/roles/delete` | `{ role_ids }` | Xoá mềm; không xoá được nhóm `sa` |
+| GET | `/admin/org/sync/status` | — | `{ enabled_targets, summary[{target,pending,failed,last_error}], failed[] }` |
+| POST | `/admin/org/sync/retry` | `{ target? }` | Đưa dòng `failed` về hàng đợi |
+| POST | `/admin/org/sync/resync` | `{ target }` | Xếp lại TOÀN BỘ dữ liệu hiện có sang 1 đích (đối soát / đích mới bật) |
+
+## Đồng bộ sang app (gọi ra, không phải endpoint của api-sso)
+
+Worker (`jobs/syncOutboxJob.ts`) đọc `a_sync_outbox` theo thứ tự id **từng đích**, đọc **snapshot hiện
+tại** của entity rồi `POST {đích}/internal/sync/<path>` (header `X-Internal-Secret`). Entity không còn /
+đã xoá mềm → gửi lệnh xoá. Lỗi → thử lại backoff 5s…30 phút, quá `SYNC_OUTBOX_MAX_ATTEMPTS` → `failed`.
+
+| Đích | Base URL / secret | Nhận |
+| --- | --- | --- |
+| `finance` (api-core → `build_management`) | `CORE_INTERNAL_URL` / `CORE_INTERNAL_SECRET` | user, user_roles, branch, department, position, role |
+| `task` (api-task → `task_management`) | `SYNC_TASK_URL` / `SYNC_TASK_SECRET` (= `TASK_SYNC_SECRET` api-task) | như finance |
+| `chat`, `meeting` | `SYNC_CHAT_*`, `SYNC_MEETING_*` | chỉ user (hợp đồng cũ: `POST users` upsert, `POST users/delete`); đổi nhóm quyền → gửi lại user (cờ admin) |
+
+Hợp đồng finance/task (giống nhau): `POST users` (upsert) + `POST users/lock`, `POST users/delete`
+`{json_list:[{user_id}], lu_user_id}`, `POST user-roles` `{user_role_list, created_by_user_id}` (thay toàn
+bộ theo user), `POST user-roles/clear` `{user_id, updated_by_id}`, `POST {branches,departments,positions,roles}`
+(upsert) và `…/delete` `{json_list:[{<id>}], updated_by_id}`.
+
+Tắt 1 đích: để trống secret hoặc `SYNC_DISABLED_TARGETS=finance,...` (dùng khi app đó chạy độc lập
+`STANDALONE_ORG_ADMIN=true`).
+

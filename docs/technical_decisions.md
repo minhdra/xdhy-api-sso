@@ -64,7 +64,7 @@ mới" xong luôn.
 `api-core` (không kiểm soát được hết nơi gọi), trong khi 1 SELECT phụ trước đó là thay đổi an toàn, cô
 lập hoàn toàn trong `api-sso`.
 
-## `api-core` giữ nguyên, không sửa
+## `api-core` giữ nguyên, không sửa (ĐÃ THAY 26/09/2026 — xem mục "Tách quản lý chung sang SSO")
 
 **Chọn:** route `login/refresh/logout/me` cũ trong `api-core` **không đổi 1 dòng** — build-web chỉ đơn
 giản không gọi tới nữa (chuyển hẳn sang `api-sso`). **Vì sao:** giảm rủi ro deploy — sửa `api-core` là
@@ -178,3 +178,25 @@ hai, file nằm rải 2 server. **Chọn:** api-core là nơi duy nhất lưu fi
 `/api/api-core/upload`: endpoint đó chung cho mọi file, không gắn user, không ghi DB, và sso-web phải gọi
 thêm 1 bước lưu path → user có thể gán path bất kỳ. **Đánh đổi:** ảnh đi 2 chặng (≤5MB, chấp nhận được);
 api-core down thì không đổi được avatar (báo 502 thay vì lưu tạm ở sso).
+
+## Tách quản lý chung sang SSO — DB riêng `sso_management` (26/09/2026)
+
+**Chọn:** user/chi nhánh/phòng ban/chức vụ/nhóm quyền chuyển nguồn chính sang api-sso trên DB mới
+`sso_management`; `build_management`/`task_management` thành bản sao nhận đồng bộ. Kế hoạch đầy đủ:
+[`../../sso_management_split_plan.md`](../../sso_management_split_plan.md). **Vì sao:** yêu cầu tách từng app
+ra vẫn chạy độc lập (có người dùng/tổ chức/tính năng riêng) — không app nào được phụ thuộc DB của app khác.
+
+- **Baseline sinh tự động thay vì gõ tay:** định nghĩa bảng/proc lấy nguyên văn từ DB đang chạy
+  (`generate-baseline.js`) → không lệch kiểu cột/logic proc. Đánh đổi: giữ luôn các điểm lạ cũ
+  (`timestamp` không múi giờ ở bảng gốc, `online_flag` làm cờ khoá) — chủ ý không "dọn" trong đợt tách.
+- **Outbox + snapshot thay vì fan-out fire-and-forget:** bản cũ (api-core `void xxxSyncClient...`) mất sự
+  kiện khi đích down. Outbox lưu "entity nào đổi", worker đọc snapshot LÚC GỬI → gửi lại bao nhiêu lần
+  cũng ra trạng thái mới nhất, không cần giữ thứ tự payload; vẫn giữ FIFO từng đích để upsert/xoá
+  không đảo chiều. Lease 2 phút thay advisory lock (pool mỗi query 1 connection, không giữ lock phiên được).
+- **Nhóm quyền chung, tính năng riêng từng app:** nhóm quyền là khái niệm tổ chức (1 người là "Kế toán"
+  ở mọi app); còn tính năng là của app. `/me` bỏ `functions/actions`, app tự trả quyền của mình.
+- **Proc nhận đồng bộ ở api-core tên riêng `Sync*`:** không đè `InsertUser/...` gốc vì chúng vẫn dùng ở
+  chế độ độc lập (`STANDALONE_ORG_ADMIN=true`).
+- **Không đồng bộ mật khẩu:** đăng nhập luôn qua api-sso; bản sao `build_management` của user mới có
+  `password='!sso'` (không phải hash hợp lệ).
+

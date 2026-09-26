@@ -51,6 +51,9 @@ function envBoolean(key, defaultValue) {
     const value = (0, env_1.default)(key, defaultValue ? 'true' : 'false').trim().toLowerCase();
     return value === 'true' || value === '1' || value === 'yes';
 }
+function envInt(key, defaultValue) {
+    return env_1.default.int(key, defaultValue) ?? defaultValue;
+}
 exports.config = {
     env: (0, env_1.default)('NODE_ENV', 'development'),
     port: env_1.default.int('PORT', 6005),
@@ -116,13 +119,51 @@ exports.config = {
     internal: {
         secret: requireEnv('INTERNAL_SECRET'),
     },
-    // Gọi api-core sau khi user tự sửa hồ sơ/avatar ở sso-web -> api-core lo
-    // đồng bộ xuống task + chat + meeting (api-core là nơi duy nhất giữ logic + secret
-    // sync đó). KHÔNG requireEnv - thiếu thì bỏ qua (không chặn sửa hồ sơ).
+    // api-core: nơi lưu file avatar (coreClient.uploadAvatar) + target đồng bộ
+    // "finance" (receiver /internal/sync/* ghi build_management). KHÔNG
+    // requireEnv - thiếu secret thì upload avatar báo 503, target finance tắt.
     // CORE_INTERNAL_SECRET phải khớp giá trị cùng tên bên api-core.
     coreInternal: {
         baseUrl: (0, env_1.default)('CORE_INTERNAL_URL', 'http://api-core:6001'),
         secret: (0, env_1.default)('CORE_INTERNAL_SECRET', ''),
+    },
+    // Đồng bộ user/tổ chức/nhóm quyền SSO -> app (a_sync_outbox + jobs/
+    // syncOutboxJob.ts). Target để trống secret hoặc nằm trong
+    // SYNC_DISABLED_TARGETS = TẮT (không ghi outbox) - dùng khi app đó chạy độc
+    // lập (STANDALONE_ORG_ADMIN=true bên app), tránh 2 nguồn ghi đè nhau. Secret phải khớp secret receiver phía app:
+    //   finance -> CORE_INTERNAL_SECRET (api-core), task -> TASK_SYNC_SECRET
+    //   (api-task), chat/meeting -> secret header X-Internal-Secret phía đó.
+    sync: {
+        targets: {
+            finance: {
+                baseUrl: (0, env_1.default)('CORE_INTERNAL_URL', 'http://api-core:6001'),
+                secret: (0, env_1.default)('CORE_INTERNAL_SECRET', ''),
+            },
+            task: {
+                baseUrl: (0, env_1.default)('SYNC_TASK_URL', 'http://api-task:6002'),
+                secret: (0, env_1.default)('SYNC_TASK_SECRET', ''),
+            },
+            chat: {
+                baseUrl: (0, env_1.default)('SYNC_CHAT_URL', 'http://api-chat:6004'),
+                secret: (0, env_1.default)('SYNC_CHAT_SECRET', ''),
+            },
+            meeting: {
+                baseUrl: (0, env_1.default)('SYNC_MEETING_URL', 'http://api-meeting:6006'),
+                secret: (0, env_1.default)('SYNC_MEETING_SECRET', ''),
+            },
+        },
+        // Tắt hẳn 1 số target (vd "finance" khi tài chính chạy độc lập - không để
+        // trống CORE_INTERNAL_SECRET được vì còn dùng cho upload avatar).
+        disabledTargets: (0, env_1.default)('SYNC_DISABLED_TARGETS', '')
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean),
+        enabled: envBoolean('SYNC_OUTBOX_ENABLED', true),
+        intervalMs: envInt('SYNC_OUTBOX_INTERVAL_MS', 5000),
+        batchSize: envInt('SYNC_OUTBOX_BATCH_SIZE', 50),
+        maxAttempts: envInt('SYNC_OUTBOX_MAX_ATTEMPTS', 12),
+        requestTimeoutMs: envInt('SYNC_REQUEST_TIMEOUT_MS', 8000),
+        doneRetentionDays: envInt('SYNC_OUTBOX_DONE_RETENTION_DAYS', 14),
     },
     // Dọn các bản ghi xác thực đã hết giá trị sử dụng. Job chỉ đụng 3 bảng
     // riêng của SSO; mặc định giữ thêm một khoảng retention để phục vụ tra soát.

@@ -6,13 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { config } from '../config/config';
-import { Action } from '../models/action';
 import { AppRepository } from '../repositories/appRepository';
 import { PasswordResetRepository } from '../repositories/passwordResetRepository';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, isBcryptHash } from '../utilities/password';
-import { Tree } from '../utilities/tree';
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 
@@ -39,7 +37,6 @@ export class AuthService {
     private userRepository: UserRepository,
     private sessionRepository: SessionRepository,
     private passwordResetRepository: PasswordResetRepository,
-    private treeUtility: Tree,
     private appRepository: AppRepository,
   ) {}
 
@@ -131,15 +128,13 @@ export class AuthService {
     }
   }
 
-  // Copy nguyên logic từ api-core/src/services/userService.ts (UserService.authorize).
+  // Chỉ danh tính - KHÔNG còn functions/actions (26/09/2026): tính năng thuộc
+  // từng app, FE gọi API quyền của app đó sau /me (tài chính:
+  // GET /api-core/me/permissions, công việc: GET /api-task/me/permissions).
   async me(userId: string): Promise<any | null> {
     const user = await this.userRepository.getUserById(userId);
     if (!user) return null;
 
-    const functions = await this.userRepository.getFunctionByUserId(user.user_id);
-    const functionTree = this.treeUtility.getFunctionTree(functions, 1, '0');
-    const actions = await this.userRepository.getActionByUserId(user.user_id);
-    const action_results = actions.map((row) => (row as Action).action_code);
     // Dùng ở FE để hiện/ẩn tab "Quản lý ứng dụng" - tính lại mỗi lần gọi
     // (không cache trong token, xem requireAdmin.ts).
     const is_admin = await this.appRepository.isAdmin(user.user_id);
@@ -163,8 +158,6 @@ export class AuthService {
       is_guest: user.is_guest,
       position_id: user.position_id,
       position_name: user.position_name,
-      functions: functionTree,
-      actions: action_results,
     };
   }
 

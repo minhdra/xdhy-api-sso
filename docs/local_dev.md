@@ -10,7 +10,7 @@ riêng lẻ không cần SSO nữa. Nội dung dưới đây nói về cách ch�
 
 | Service | Port | Cách chạy | Ghi chú |
 | --- | --- | --- | --- |
-| `api-core` | 6001 | `pnpm start` | Users/roles/branch/department (DB `build_management`) |
+| `api-core` | 6001 | `pnpm start` | Tài chính: tính năng/phân quyền + bản sao user/tổ chức (DB `build_management`) |
 | `api-sso` | 6005 | `pnpm start` | Auth (login/refresh/logout/me), phân quyền app |
 | `api-task-management` | 6002 | `pnpm start` | Module Nhiệm vụ |
 | `api-gateway` | 6688 | `pnpm start` | Cổng vào duy nhất — mọi frontend chỉ gọi qua đây |
@@ -48,10 +48,10 @@ là hành vi cố ý (không cho vào giao diện khi chưa xác định đượ
 
 ## 4. Checklist `.env` trước khi chạy — đây là chỗ hay vướng nhất
 
-- [ ] **`DB_HOST`/`DB_PORT`/`DB_NAME` của `api-core`, `api-sso` phải trỏ CÙNG 1 database
-      (`build_management`); `api-task-management` trỏ `task_management` cùng server.** Nếu `api-sso` trỏ
-      DB khác `api-core`, đăng nhập qua `api-sso` sẽ tạo phiên cho user mà `api-core` không biết là ai.
-      Mặc định cả 3 đều trỏ `112.78.1.3` (DB thật) — kiểm tra khớp trước khi chạy.
+- [ ] **`api-sso` trỏ `sso_management`, `api-core` trỏ `build_management`, `api-task-management` trỏ
+      `task_management`** (cùng server `112.78.1.3`, từ 26/09/2026). User/tổ chức tới app khác qua đồng
+      bộ — muốn app local nhận thay đổi thì `CORE_INTERNAL_URL`/`SYNC_TASK_URL` của api-sso phải trỏ
+      service local đang chạy (mặc định `localhost:6001`/`6002`) và secret khớp.
 - [ ] `api-gateway/.env`: `URL_CORE`/`URL_SSO`/`URL_TASK_MANAGEMENT`/`JWT_JWKS_URI` trỏ đúng port ở
       mục 1 (mặc định trong `.env.example` đã đúng, chỉ cần copy).
 - [ ] `api-gateway/.env`: `CORS_ORIGIN` = origin `build-web` (`http://localhost:3010`). `task-web`/

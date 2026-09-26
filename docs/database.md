@@ -1,13 +1,31 @@
 # Database
 
-`api-sso` **không có database riêng** — đọc/ghi thẳng `build_management` (cùng DB với `api-core`/
-`api-task-management`, remote, không phải container local). Không tạo DB mới, không di trú dữ liệu
-người dùng — `system_users`/`user_profiles`/`roles`... vẫn do `api-core` "sở hữu" theo nghĩa vai trò
-nghiệp vụ, `api-sso` chỉ đọc lại qua stored procedure có sẵn (không sửa proc gốc).
+## DB `sso_management` (từ 26/09/2026)
 
-Migration nằm ở [`db/migrations/`](../db/migrations) (đánh số `NNNN_*.sql`, idempotent — `CREATE TABLE
-IF NOT EXISTS`/`CREATE OR REPLACE PROCEDURE`), chạy tay theo đúng thứ tự lên `build_management` — xem
-quy tắc đầy đủ ở [`db/README.md`](../db/README.md).
+`api-sso` có **DB riêng `sso_management`** (cùng server Postgres remote) và là **nguồn chính** của
+`system_users`, `user_profiles`, `employee`, `branch`, `department`, `positions`, `roles`, `user_roles`
++ các bảng `a_*`. `build_management` (tài chính) và `task_management` (công việc) chỉ giữ **bản sao**, do
+api-sso đồng bộ sang qua `a_sync_outbox` (xem [`api.md`](./api.md) mục "Đồng bộ sang app"). DB cũ
+`build_management` **không bị xoá** — tài chính vẫn dùng.
+
+- Không mang sang: `country` (không dùng ở đâu), cột `positions.rank_weight` (thuộc app Công việc),
+  bảng tính năng `functions/actions/role_functions/role_permissions` (mỗi app tự giữ).
+- Migration: [`db/sso_management/`](../db/sso_management) — `0001`/`0002` là baseline sinh tự động từ
+  `build_management` (`scripts/sso-management/generate-baseline.js`, nguyên văn định nghĩa bảng/proc đang
+  chạy thật), từ `0003` là thay đổi mới. Chạy: `node scripts/sso-management/migrate.js [--create-db]`
+  (ghi lịch sử ở bảng `a_schema_migration`, chạy lại chỉ áp file mới — không cần `psql`).
+- Chuyển dữ liệu lúc cutover: `node scripts/sso-management/copy-data.js [--dry-run]` — chép lại toàn bộ
+  (TRUNCATE đích rồi INSERT, giữ nguyên ID + hash mật khẩu, 1 snapshot REPEATABLE READ ở nguồn, đẩy
+  sequence identity). Chặn nếu đích có user không có ở nguồn (dấu hiệu SSO đã chạy thật) trừ khi
+  `--force`.
+- Khác biệt proc so với bản gốc: `DeleteRole` (0003) chỉ xoá mềm `roles`; `DeleteUser` (0005) **xoá mềm**
+  + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, luôn lỗi FK với user đã từng đăng nhập).
+- `a_sync_outbox` (0004): hàng đợi đồng bộ (`target`, `entity`, `op`, `entity_id`, `status`
+  pending/done/failed, `attempts`, `next_retry_at`, `last_error`). Dòng `done` quá
+  `SYNC_OUTBOX_DONE_RETENTION_DAYS` (14) ngày tự xoá.
+
+Migration cũ ở [`db/migrations/`](../db/migrations) (0001–0015) là lịch sử trên `build_management` —
+đã có sẵn trong baseline, **không thêm file mới vào đó**. Quy tắc chung ở [`db/README.md`](../db/README.md).
 
 ## Bảng repo này sở hữu (tiền tố `a_`, module auth/SSO — giống `t_` của task)
 

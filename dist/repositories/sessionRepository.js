@@ -95,6 +95,11 @@ let SessionRepository = class SessionRepository {
         }
         return rows.length;
     }
+    // Thu hồi MỌI phiên còn hiệu lực của 1 user (admin khoá tài khoản).
+    async revokeAllForUser(userId) {
+        await this.db.raw(`UPDATE a_refresh_token SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
+        await this.db.raw(`UPDATE a_session SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);
+    }
 };
 exports.SessionRepository = SessionRepository;
 exports.SessionRepository = SessionRepository = __decorate([

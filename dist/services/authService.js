@@ -24,16 +24,14 @@ const passwordResetRepository_1 = require("../repositories/passwordResetReposito
 const sessionRepository_1 = require("../repositories/sessionRepository");
 const userRepository_1 = require("../repositories/userRepository");
 const password_1 = require("../utilities/password");
-const tree_1 = require("../utilities/tree");
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1h
 const REMEMBER_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30d - hạn dòng a_refresh_token khi remember
 const DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7d - khi không remember
 let AuthService = class AuthService {
-    constructor(userRepository, sessionRepository, passwordResetRepository, treeUtility, appRepository) {
+    constructor(userRepository, sessionRepository, passwordResetRepository, appRepository) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.passwordResetRepository = passwordResetRepository;
-        this.treeUtility = treeUtility;
         this.appRepository = appRepository;
     }
     async login(identifier, password, remember, meta) {
@@ -106,15 +104,13 @@ let AuthService = class AuthService {
             await this.sessionRepository.revokeSession(sessionId);
         }
     }
-    // Copy nguyên logic từ api-core/src/services/userService.ts (UserService.authorize).
+    // Chỉ danh tính - KHÔNG còn functions/actions (26/09/2026): tính năng thuộc
+    // từng app, FE gọi API quyền của app đó sau /me (tài chính:
+    // GET /api-core/me/permissions, công việc: GET /api-task/me/permissions).
     async me(userId) {
         const user = await this.userRepository.getUserById(userId);
         if (!user)
             return null;
-        const functions = await this.userRepository.getFunctionByUserId(user.user_id);
-        const functionTree = this.treeUtility.getFunctionTree(functions, 1, '0');
-        const actions = await this.userRepository.getActionByUserId(user.user_id);
-        const action_results = actions.map((row) => row.action_code);
         // Dùng ở FE để hiện/ẩn tab "Quản lý ứng dụng" - tính lại mỗi lần gọi
         // (không cache trong token, xem requireAdmin.ts).
         const is_admin = await this.appRepository.isAdmin(user.user_id);
@@ -137,8 +133,6 @@ let AuthService = class AuthService {
             is_guest: user.is_guest,
             position_id: user.position_id,
             position_name: user.position_name,
-            functions: functionTree,
-            actions: action_results,
         };
     }
     mailTransporter() {
@@ -229,6 +223,5 @@ exports.AuthService = AuthService = __decorate([
     __metadata("design:paramtypes", [userRepository_1.UserRepository,
         sessionRepository_1.SessionRepository,
         passwordResetRepository_1.PasswordResetRepository,
-        tree_1.Tree,
         appRepository_1.AppRepository])
 ], AuthService);

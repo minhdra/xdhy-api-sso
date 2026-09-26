@@ -189,33 +189,9 @@ export class UserRepository {
     return result;
   }
 
-  async getFunctionByUserId(id: string): Promise<any[]> {
-    const sql = `
-      CALL "GetFunctionByUserId"(
-        $1,
-        NULL,
-        NULL,
-        NULL
-      )
-    `;
-
-    const result = await this.db.queryList(sql, [id]);
-
-    return result.rows;
-  }
-
-  async getActionByUserId(id: string): Promise<any[]> {
-    const sql = `
-      CALL "GetActionByUserId"(
-        $1,
-        NULL,
-        NULL,
-        NULL
-      )
-    `;
-
-    const result = await this.db.queryList(sql, [id]);
-
-    return result.rows;
+  // Chỉ đổi user_profiles.avatar (proc a_SetAvatar, migration 0004). File đã
+  // được api-core lưu - đây chỉ ghi path vào nguồn chính sso_management.
+  async setAvatar(userId: string, avatar: string, luUserId: string): Promise<void> {
+    await this.db.query(`CALL "a_SetAvatar"($1, $2, $3, NULL, NULL, NULL)`, [userId, avatar, luUserId]);
   }
 }

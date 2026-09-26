@@ -17,10 +17,12 @@ const coreClient_1 = require("../integrations/coreClient");
 const sessionRepository_1 = require("../repositories/sessionRepository");
 const userRepository_1 = require("../repositories/userRepository");
 const password_1 = require("../utilities/password");
+const syncService_1 = require("./syncService");
 let AccountService = class AccountService {
-    constructor(userRepository, sessionRepository) {
+    constructor(userRepository, sessionRepository, syncService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
+        this.syncService = syncService;
     }
     // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
     // để hiển thị, dù user không sửa được các field đó).
@@ -33,8 +35,7 @@ let AccountService = class AccountService {
     }
     // Chỉ đụng vào các field hồ sơ tự phục vụ - proc a_UpdateSelfProfile không
     // chạm branch/department/position/type. Avatar có endpoint upload riêng.
-    // Sau khi ghi build_management -> báo api-core đồng bộ xuống task + chat
-    // (non-blocking, xem integrations/coreClient.ts).
+    // Ghi sso_management xong -> outbox đồng bộ user sang các app (SyncService).
     async updateProfile(userId, patch) {
         await this.userRepository.updateSelfProfile({
             user_id: userId,
@@ -45,12 +46,16 @@ let AccountService = class AccountService {
             date_of_birth: patch.date_of_birth,
             lu_user_id: userId,
         });
-        void (0, coreClient_1.resyncProfile)(userId);
+        await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
     }
-    // api-core lưu file + ghi DB + đồng bộ downstream (xem coreClient.uploadAvatar).
-    // Trả về URL public của avatar mới để FE cập nhật ngay.
+    // api-core CHỈ lưu file (+ dọn file cũ) rồi trả path thô; ghi
+    // user_profiles.avatar ở sso_management (nguồn chính) và đồng bộ user sang
+    // các app qua outbox. Trả về URL public của avatar mới để FE cập nhật ngay.
     async setAvatar(userId, file) {
-        return (0, avatarUpload_1.toPublicAvatarUrl)(await (0, coreClient_1.uploadAvatar)(userId, file));
+        const avatar = await (0, coreClient_1.uploadAvatar)(userId, file);
+        await this.userRepository.setAvatar(userId, avatar, userId);
+        await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
+        return (0, avatarUpload_1.toPublicAvatarUrl)(avatar);
     }
     async changePassword(userId, oldPassword, newPassword) {
         const currentHash = await this.userRepository.getPasswordHash(userId);
@@ -80,5 +85,6 @@ exports.AccountService = AccountService;
 exports.AccountService = AccountService = __decorate([
     (0, tsyringe_1.injectable)(),
     __metadata("design:paramtypes", [userRepository_1.UserRepository,
-        sessionRepository_1.SessionRepository])
+        sessionRepository_1.SessionRepository,
+        syncService_1.SyncService])
 ], AccountService);

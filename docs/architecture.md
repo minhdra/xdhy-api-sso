@@ -16,8 +16,12 @@ sso-web (đăng nhập, quản lý tài khoản)   build-web (app chính)
                     ký/verify token RS256, phát JWKS
                               │
                               ▼
-              PostgreSQL build_management (remote, dùng chung
-              với api-core/api-task-management — không có DB riêng)
+              PostgreSQL sso_management (DB riêng từ 26/09/2026 -
+              nguồn chính user/tổ chức/nhóm quyền)
+                              │ a_sync_outbox -> worker
+                              ▼
+         /internal/sync/* của api-core (build_management),
+         api-task (task_management), chat, meeting (bản sao)
 ```
 
 `api-sso` là **API thuần** — không phục vụ HTML nào (kể cả trang login), khác hẳn `api-core` bản cũ.
@@ -27,11 +31,21 @@ xem `sso-web/docs/architecture.md`). Không tự publish port ra internet trong 
 `expose`, đúng nguyên tắc "chỉ frontend + gateway mở cổng" — xem `docker-compose.real.yml`).
 
 `api-sso` tách ra từ `api-core`: `login/refresh/logout/me/forgot-password` từng nằm trong
-`api-core/src/controllers/userController.ts`, giờ route đó trả `410 Gone` (xem
-`api-core/src/controllers/userController.ts`) — `api-core` **để nguyên, không sửa gì khác**, chỉ không
-còn ai gọi tới các route auth cũ của nó. `api-core` vẫn là nơi duy nhất quản trị `system_users`/
-`user_profiles`/`roles`/`positions`... — `api-sso` chỉ **đọc/ghi trực tiếp cùng schema đó**, không có
-migration hay bảng "user" riêng.
+`api-core/src/controllers/userController.ts`, giờ route đó trả `410 Gone`.
+
+**Từ 26/09/2026 api-sso là nơi quản trị người dùng/chi nhánh/phòng ban/chức vụ/nhóm quyền** (DB riêng
+`sso_management`, màn quản trị ở sso-web — chỉ admin). Mục tiêu: tách từng app ra vẫn chạy độc lập được.
+
+- **Đồng bộ ra app**: mọi thay đổi gọi `SyncService.notify()` → ghi `a_sync_outbox` (1 dòng/đích) →
+  `jobs/syncOutboxJob.ts` gửi theo thứ tự FIFO từng đích, đọc snapshot lúc gửi, lease 2 phút mỗi dòng
+  (chạy nhiều instance không gửi trùng), backoff khi lỗi. Thay cho mô hình cũ api-core fan-out
+  fire-and-forget (mất sự kiện khi đích down).
+- **Nhóm quyền chung, tính năng riêng**: SSO giữ danh sách nhóm quyền + gán người vào nhóm; mỗi app tự
+  map nhóm → tính năng/thao tác trong DB của app. `/me` chỉ trả danh tính; FE gọi thêm
+  `/api-core/me/permissions` (tài chính) hoặc `/api-task/me/permissions` (công việc).
+- **Chế độ độc lập**: api-core/api-task có sẵn API quản trị user/tổ chức khoá bằng `STANDALONE_ORG_ADMIN`
+  (mặc định `false`). Bật cờ ở app nào thì tắt đích tương ứng ở api-sso (`SYNC_DISABLED_TARGETS`).
+- api-core chỉ còn giữ file avatar (`/internal/users/:id/avatar`) + nhận đồng bộ.
 
 ## Cấu trúc `src/`
 
@@ -51,8 +65,8 @@ PostgreSQL stored procedures — nghiệp vụ + validation cho phần đụng b
 
 Các thư mục khác: `middlewares/` (`auth.ts` = `requireAuth`, `requireAdmin.ts`, `validate.ts` = zod),
 `schemas/` (zod, cũng dùng để sinh OpenAPI), `openapi/` (`defineRoute`/`registry`/`document` — copy
-khuôn từ `api-core`), `errors/` (`AppError` + `errorHandler`), `models/`, `utilities/` (`password.ts`:
-bcrypt + tương thích hash MD5 cũ, `tree.ts`: dựng cây `functions`).
+khuôn từ `api-core`), `errors/` (`AppError` + `errorHandler`), `utilities/` (`password.ts`: bcrypt +
+tương thích hash MD5 cũ), `jobs/` (`dataCleanupJob`, `syncOutboxJob`).
 
 Dependency injection bằng `tsyringe` (`@injectable()` + `container.resolve()` ngay trong route file) —
 đúng pattern `api-core`/`api-task-management`, không có `container.ts` trung tâm.
@@ -101,10 +115,10 @@ Từ 25/09/2026 **api-core là nơi duy nhất lưu file avatar**. api-sso `mult
 ≤5MB — `config/avatarUpload.ts`) rồi `integrations/coreClient.ts` `uploadAvatar()` chuyển tiếp multipart
 sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar` (header `X-Internal-Secret` =
 `CORE_INTERNAL_SECRET`). api-core lưu bằng `UploadService` chung — **giữ nguyên format path của
-api-core** (`uploads/yyyy-mm-dd/<tên>-<số>.<ext>`, backslash trên Windows), gọi `a_SetAvatar`, dọn file
-cũ, đồng bộ task/chat/meeting; trả path thô → api-sso `toPublicAvatarUrl()` →
-`/api/api-core/uploads/...`. api-sso không còn ghi DB avatar, không gọi
-`resyncProfile` cho avatar.
+api-core** (`uploads/yyyy-mm-dd/<tên>-<số>.<ext>`, backslash trên Windows), ghi bản sao
+`build_management`, dọn file cũ; trả path thô. Từ 26/09/2026 api-sso tự ghi nguồn chính
+(`a_SetAvatar` trên `sso_management`) rồi xếp đồng bộ user sang các app → `toPublicAvatarUrl()` →
+`/api/api-core/uploads/...`.
 
 **Tương thích dữ liệu cũ:** record `/api-sso/uploads/avatars/...` (upload trước 25/09/2026) vẫn được
 serve qua `express.static` ở `/api-sso/uploads` và job dọn orphan vẫn quét `uploads/avatars` của api-sso

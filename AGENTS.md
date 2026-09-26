@@ -27,10 +27,12 @@ phần "Trước khi đoán" và "Vận hành", 2 mục dễ gây sai lầm tố
 
 ## Vận hành
 
-- **DB remote thật** (`build_management`, cùng DB với `api-core`/`api-task-management` bảng dùng chung —
-  xem `.env`), không phải container local. Mọi query chạm dữ liệu thật của người dùng thật — không chạy
-  `DELETE`/`UPDATE`/DDL tuỳ tiện để "thử", kể cả qua stored procedure; đổi schema luôn qua file migration
-  mới trong `db/migrations/`, không sửa tay trực tiếp trên DB rồi quên ghi lại.
+- **DB remote thật, riêng của SSO: `sso_management`** (từ 26/09/2026 — xem `.env`), không phải container
+  local. api-sso là **nguồn chính** người dùng/chi nhánh/phòng ban/chức vụ/nhóm quyền; `build_management`
+  (tài chính) và `task_management` (công việc) chỉ giữ **bản sao** do api-sso đồng bộ sang. Mọi query chạm
+  dữ liệu thật của người dùng thật — không chạy `DELETE`/`UPDATE`/DDL tuỳ tiện để "thử"; đổi schema luôn
+  qua file migration mới trong **`db/sso_management/`** (chạy bằng `scripts/sso-management/migrate.js`),
+  `db/migrations/` là lịch sử cũ trên `build_management`, không thêm file mới vào đó.
 - Local dev chạy `pnpm start` (`nodemon --exec ts-node`) — tự restart khi sửa file `.ts`, không cần build
   lại thủ công như service chạy qua Docker image dựng sẵn. `api-sso` **bắt buộc phải chạy** để bất kỳ
   frontend nào (`build-web`/`task-web`/`sso-web`) qua khỏi màn hình loading (`GET /me?app=` gọi lúc
@@ -40,9 +42,13 @@ phần "Trước khi đoán" và "Vận hành", 2 mục dễ gây sai lầm tố
   cookie phiên không set được trên `localhost`. Luôn mở bằng `http://localhost:<port>`, không
   `127.0.0.1` — 2 hostname khác nhau, cookie phiên không theo qua được (chi tiết
   [`docs/local_dev.md`](./docs/local_dev.md) mục 3-4).
-- `DB_HOST`/`DB_PORT`/`DB_NAME` của `api-sso` **phải trỏ đúng DB `build_management` giống `api-core`** —
-  lệch DB thì đăng nhập qua `api-sso` tạo phiên cho user mà `api-core` không biết, lỗi rất khó nhận ra
-  qua log thông thường.
+- `DB_NAME` của `api-sso` = **`sso_management`** (không còn dùng chung `build_management` với api-core).
+  User mới/sửa ở SSO tới được app khác **chỉ qua đồng bộ** (`a_sync_outbox` + `jobs/syncOutboxJob.ts`) —
+  app không thấy user mới thì xem màn "Đồng bộ" (sso-web) / `GET /admin/org/sync/status` trước khi đoán
+  bug ở app.
+- **Thay đổi user/tổ chức/nhóm quyền PHẢI gọi `SyncService.notify()` sau khi proc ghi thành công** —
+  quên là app khác lệch dữ liệu âm thầm. Worker đọc snapshot hiện tại lúc gửi (không gửi payload lúc
+  enqueue), nên chỉ cần báo "entity nào đổi".
 
 ## Conventions bắt buộc theo khi thêm route mới
 

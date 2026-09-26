@@ -10,8 +10,8 @@ ký, xây bằng **Node.js + TypeScript + Express**.
 - **Runtime**: Node.js (>= 18), TypeScript 5
 - **Framework**: Express
 - **Dependency Injection**: tsyringe + reflect-metadata
-- **Database**: PostgreSQL (`pg`) — không có DB riêng, đọc/ghi thẳng `build_management` (dùng chung với
-  `api-core`)
+- **Database**: PostgreSQL (`pg`) — DB riêng `sso_management` (từ 26/09/2026): nguồn chính người dùng/chi
+  nhánh/phòng ban/chức vụ/nhóm quyền, đồng bộ sang các app qua `a_sync_outbox`
 - **Auth**: JWT ký RS256 (`jsonwebtoken`), public key phơi qua JWKS (`jwks-rsa` ở phía service khác đọc
   lại), mật khẩu hash bằng `bcrypt`
 - **Validate + docs API**: `zod` + `@asteasolutions/zod-to-openapi` + `swagger-ui-express`
@@ -52,8 +52,8 @@ docs/
 
 - Node.js >= 18
 - pnpm >= 9 (`corepack enable` để tự động dùng đúng version)
-- PostgreSQL (kết nối tới `build_management` — xem [`docs/database.md`](./docs/database.md), service
-  này không có DB riêng)
+- PostgreSQL (DB `sso_management` — xem [`docs/database.md`](./docs/database.md); tạo mới bằng
+  `node scripts/sso-management/migrate.js --create-db`)
 
 ### Cài đặt
 

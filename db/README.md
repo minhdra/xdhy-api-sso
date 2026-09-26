@@ -1,5 +1,19 @@
 # Migration database của API SSO
 
+> **Từ 26/09/2026 api-sso dùng DB riêng `sso_management`** — migration mới nằm ở
+> [`sso_management/`](./sso_management) (`0001`/`0002` baseline sinh từ `build_management`, `0003+` thay
+> đổi mới), chạy bằng `node scripts/sso-management/migrate.js [--create-db]`; chép dữ liệu lúc cutover
+> bằng `scripts/sso-management/copy-data.js`. Thư mục `migrations/` bên dưới là **lịch sử trên
+> `build_management`** (đã nằm trong baseline) — không thêm file mới vào đó.
+>
+> | File (`sso_management/`) | Thay đổi |
+> | --- | --- |
+> | `0001_baseline_tables.sql` | 13 bảng (user/tổ chức/nhóm quyền + `a_*`), không có `country`, không có `positions.rank_weight`. |
+> | `0002_baseline_procs.sql` | 59 proc (`a_*` + CRUD user/tổ chức/nhóm quyền), nguyên văn `pg_get_functiondef`. |
+> | `0003_delete_role_without_role_functions.sql` | `DeleteRole` chỉ xoá mềm `roles` (bảng tính năng thuộc từng app). |
+> | `0004_sync_outbox.sql` | Bảng `a_sync_outbox` - hàng đợi đồng bộ sang app. |
+> | `0005_delete_user_soft.sql` | `DeleteUser` xoá mềm + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, lỗi FK). |
+
 Thư mục `migrations/` là nguồn chính thức cho mọi thay đổi bảng, index và stored procedure của module SSO. Không sửa trực tiếp database production mà không tạo migration tương ứng tại đây.
 
 ## Danh sách migration
