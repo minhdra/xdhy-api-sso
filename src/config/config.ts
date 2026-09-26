@@ -84,9 +84,8 @@ export const config = {
   internal: {
     secret: requireEnv('INTERNAL_SECRET'),
   },
-  // api-core: nơi lưu file avatar (coreClient.uploadAvatar) + target đồng bộ
-  // "finance" (receiver /internal/sync/* ghi build_management). KHÔNG
-  // requireEnv - thiếu secret thì upload avatar báo 503, target finance tắt.
+  // api-core: target đồng bộ "finance" (receiver /internal/sync/* ghi
+  // build_management). KHÔNG requireEnv - thiếu secret thì target finance tắt.
   // CORE_INTERNAL_SECRET phải khớp giá trị cùng tên bên api-core.
   coreInternal: {
     baseUrl: env('CORE_INTERNAL_URL', 'http://api-core:6001'),

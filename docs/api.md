@@ -40,7 +40,7 @@ discovery) — service khác verify JWT bằng key ở đây (package `jwks-rsa`
 | --- | --- | --- | --- |
 | GET | `/account/profile` | — | Hồ sơ đầy đủ: cá nhân + `position_name`/`department_name`/`branch_name` + `is_admin` |
 | PUT | `/account/profile` | `{ full_name, email, phone_number, gender, date_of_birth }` | Chỉ sửa field tự phục vụ — **không đụng** `branch/department/position/type`. Ghi `sso_management` rồi xếp đồng bộ user sang các app (`a_sync_outbox`) |
-| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB. api-sso **không lưu file** (từ 25/09/2026): chuyển tiếp sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar`, api-core CHỈ lưu file bằng `UploadService` chung (format path của api-core `uploads/yyyy-mm-dd/<tên>-<số>.<ext>`) + dọn file cũ; api-sso ghi `user_profiles.avatar` ở `sso_management` rồi xếp đồng bộ user sang các app. Trả `{ avatar: "/api/api-core/uploads/yyyy-mm-dd/..." }`. Lỗi api-core → 400/404 nguyên văn, còn lại 502; thiếu `CORE_INTERNAL_SECRET` → 503 |
+| POST | `/account/avatar` | `multipart/form-data`, field `file` | Ảnh ≤5MB (jpg/png/gif/webp). Từ 26/09/2026 **api-sso lưu file** `uploads/avatars/<username>--<user_id>/<uuid>.<ext>`, ghi `/api-sso/uploads/avatars/...` vào `sso_management`, xoá file cũ, xếp đồng bộ user sang các app. Trả `{ avatar: "/api/api-sso/uploads/avatars/..." }` |
 | POST | `/account/change-password` | `{ oldPassword, newPassword }` | Verify mật khẩu cũ bằng bcrypt trước khi đổi |
 | GET | `/account/sessions` | — | Danh sách phiên đang hoạt động, cờ `current` cho phiên gọi request này |
 | POST | `/account/sessions/revoke` | `{ session_id }` | Không thu hồi được **chính phiên hiện tại** (dùng `/logout`) |
@@ -113,6 +113,7 @@ thành công đều xếp đồng bộ sang app (xem mục "Đồng bộ"). `pag
 | POST | `/admin/org/users/delete` | `{ user_ids }` | **Xoá mềm** (proc `DeleteUser` bản 0005): `active_flag=0` 4 bảng, thu hồi mọi phiên, gỡ quyền app. Không tự xoá chính mình |
 | POST | `/admin/org/users/lock` | `{ user_id, online_flag }` | `online_flag=1` = khoá (`GetUserByAccount` chỉ cho đăng nhập khi `0`) — khoá thì thu hồi luôn mọi phiên. Không tự khoá mình |
 | POST | `/admin/org/users/reset-password` | `{ user_id }` | Mật khẩu ngẫu nhiên (crypto), gửi email nếu có; trả `{ new_password, emailed }` cho admin |
+| POST | `/admin/org/users/:user_id/avatar` | `multipart/form-data`, field `file` | Admin đổi avatar hộ user - cùng luồng `/account/avatar` (thư mục của user được đổi) |
 | PUT | `/admin/org/users/:user_id/roles` | `{ role_ids }` | Gán lại toàn bộ nhóm quyền (rỗng = gỡ hết). Admin không tự gỡ nhóm `sa` của mình |
 | POST | `/admin/org/{branches,departments,positions}/search` | `{ pageIndex, pageSize, search_content? }` | Danh sách phân trang |
 | GET | `/admin/org/{branches,departments,positions,roles}/dropdown` | — | `[{ label, value }]` |

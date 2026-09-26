@@ -2,11 +2,11 @@ import { injectable } from 'tsyringe';
 
 import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { AppError } from '../errors/AppError';
-import { uploadAvatar } from '../integrations/coreClient';
 import { SessionRepository } from '../repositories/sessionRepository';
 import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, verifyPassword } from '../utilities/password';
 
+import { AvatarService } from './avatarService';
 import { SyncService } from './syncService';
 
 export interface UpdateProfilePatch {
@@ -23,6 +23,7 @@ export class AccountService {
     private userRepository: UserRepository,
     private sessionRepository: SessionRepository,
     private syncService: SyncService,
+    private avatarService: AvatarService,
   ) {}
 
   // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
@@ -50,14 +51,10 @@ export class AccountService {
     await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
   }
 
-  // api-core CHỈ lưu file (+ dọn file cũ) rồi trả path thô; ghi
-  // user_profiles.avatar ở sso_management (nguồn chính) và đồng bộ user sang
-  // các app qua outbox. Trả về URL public của avatar mới để FE cập nhật ngay.
-  async setAvatar(userId: string, file: Express.Multer.File): Promise<string | null> {
-    const avatar = await uploadAvatar(userId, file);
-    await this.userRepository.setAvatar(userId, avatar, userId);
-    await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
-    return toPublicAvatarUrl(avatar);
+  // Lưu file ở api-sso + ghi DB + đồng bộ (AvatarService). Trả URL public để
+  // FE cập nhật ngay.
+  setAvatar(userId: string, file: Express.Multer.File): Promise<string | null> {
+    return this.avatarService.replace(userId, file, userId);
   }
 
   async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {

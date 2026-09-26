@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const tsyringe_1 = require("tsyringe");
+const avatarUpload_1 = require("../config/avatarUpload");
 const adminOrgController_1 = require("../controllers/adminOrgController");
 const auth_1 = require("../middlewares/auth");
 const requireAdmin_1 = require("../middlewares/requireAdmin");
@@ -29,6 +30,14 @@ route('post', '/users/lock', USERS, 'Đổi cờ khoá (online_flag)', c.lockUse
 route('post', '/users/reset-password', USERS, 'Đặt lại mật khẩu ngẫu nhiên + gửi email', c.resetPassword, {
     body: adminOrg_schema_1.userIdSchema,
 });
+adminOrgRouter.post('/admin/org/users/:user_id/avatar', ...(0, defineRoute_1.defineRoute)({
+    method: 'post',
+    path: '/admin/org/users/{user_id}/avatar',
+    tags: [USERS],
+    summary: 'Đổi ảnh đại diện của user (multipart, field "file", ảnh ≤5MB)',
+    schema: { params: adminOrg_schema_1.userIdParamSchema },
+    responses: ok,
+}), avatarUpload_1.avatarUpload, c.setUserAvatar);
 route('put', '/users/:user_id/roles', USERS, 'Gán lại toàn bộ nhóm quyền của user', c.setUserRoles, {
     params: adminOrg_schema_1.userIdParamSchema,
     body: adminOrg_schema_1.setUserRolesSchema,

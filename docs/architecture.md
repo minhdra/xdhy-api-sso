@@ -111,14 +111,18 @@ service khác (`api-task-management`/`api-gateway` verify JWT xong là xong, kh�
 
 ## Upload avatar
 
-Từ 25/09/2026 **api-core là nơi duy nhất lưu file avatar**. api-sso `multer` memoryStorage (chỉ ảnh,
-≤5MB — `config/avatarUpload.ts`) rồi `integrations/coreClient.ts` `uploadAvatar()` chuyển tiếp multipart
-sang `POST {CORE_INTERNAL_URL}/internal/users/:userId/avatar` (header `X-Internal-Secret` =
-`CORE_INTERNAL_SECRET`). api-core lưu bằng `UploadService` chung — **giữ nguyên format path của
-api-core** (`uploads/yyyy-mm-dd/<tên>-<số>.<ext>`, backslash trên Windows), ghi bản sao
-`build_management`, dọn file cũ; trả path thô. Từ 26/09/2026 api-sso tự ghi nguồn chính
-(`a_SetAvatar` trên `sso_management`) rồi xếp đồng bộ user sang các app → `toPublicAvatarUrl()` →
-`/api/api-core/uploads/...`.
+**Từ 26/09/2026 api-sso lưu file avatar** (SSO là nguồn chính user; đảo lại quyết định 25/09 chuyển
+tiếp sang api-core). `multer` memoryStorage (chỉ ảnh, ≤5MB) → `services/avatarService.ts`
+`replace(userId, file, actor)`: ghi `uploads/avatars/<username>--<user_id>/<uuid>.<ext>`
+(`config/avatarUpload.ts saveAvatarFile`) → `a_SetAvatar` trên `sso_management` (lỗi thì xoá file vừa
+ghi) → xoá file cũ nếu là file SSO → `SyncService.notify(user)`. DB lưu `/api-sso/uploads/avatars/...`;
+app khác nhận nguyên giá trị qua đồng bộ, FE các app ghép `/api` + path (build-web/task-web
+`resolveUploadUrl`). Dùng chung cho `/account/avatar` (tự đổi) và `/admin/org/users/:id/avatar` (admin
+đổi hộ). Route `/internal/users/:id/avatar` của api-core không còn ai gọi.
+
+Avatar lưu ở api-core giai đoạn 25–26/09 (`uploads\yyyy-mm-dd\...`) vẫn hiển thị qua
+`toPublicAvatarUrl` → `/api/api-core/uploads/...`; đổi ảnh mới thì chuyển sang file SSO (file api-core cũ
+không bị xoá).
 
 **Tương thích dữ liệu cũ:** record `/api-sso/uploads/avatars/...` (upload trước 25/09/2026) vẫn được
 serve qua `express.static` ở `/api-sso/uploads` và job dọn orphan vẫn quét `uploads/avatars` của api-sso

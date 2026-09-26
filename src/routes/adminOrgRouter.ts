@@ -1,6 +1,7 @@
 import { type RequestHandler, Router } from 'express';
 import { container } from 'tsyringe';
 
+import { avatarUpload } from '../config/avatarUpload';
 import { AdminOrgController } from '../controllers/adminOrgController';
 import { requireAuth } from '../middlewares/auth';
 import { requireAdmin } from '../middlewares/requireAdmin';
@@ -65,6 +66,19 @@ route('post', '/users/lock', USERS, 'Đổi cờ khoá (online_flag)', c.lockUse
 route('post', '/users/reset-password', USERS, 'Đặt lại mật khẩu ngẫu nhiên + gửi email', c.resetPassword, {
   body: userIdSchema,
 });
+adminOrgRouter.post(
+  '/admin/org/users/:user_id/avatar',
+  ...defineRoute({
+    method: 'post',
+    path: '/admin/org/users/{user_id}/avatar',
+    tags: [USERS],
+    summary: 'Đổi ảnh đại diện của user (multipart, field "file", ảnh ≤5MB)',
+    schema: { params: userIdParamSchema },
+    responses: ok,
+  }),
+  avatarUpload,
+  c.setUserAvatar,
+);
 route('put', '/users/:user_id/roles', USERS, 'Gán lại toàn bộ nhóm quyền của user', c.setUserRoles, {
   params: userIdParamSchema,
   body: setUserRolesSchema,

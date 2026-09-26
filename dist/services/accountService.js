@@ -13,16 +13,17 @@ exports.AccountService = void 0;
 const tsyringe_1 = require("tsyringe");
 const avatarUpload_1 = require("../config/avatarUpload");
 const AppError_1 = require("../errors/AppError");
-const coreClient_1 = require("../integrations/coreClient");
 const sessionRepository_1 = require("../repositories/sessionRepository");
 const userRepository_1 = require("../repositories/userRepository");
 const password_1 = require("../utilities/password");
+const avatarService_1 = require("./avatarService");
 const syncService_1 = require("./syncService");
 let AccountService = class AccountService {
-    constructor(userRepository, sessionRepository, syncService) {
+    constructor(userRepository, sessionRepository, syncService, avatarService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.syncService = syncService;
+        this.avatarService = avatarService;
     }
     // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
     // để hiển thị, dù user không sửa được các field đó).
@@ -48,14 +49,10 @@ let AccountService = class AccountService {
         });
         await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
     }
-    // api-core CHỈ lưu file (+ dọn file cũ) rồi trả path thô; ghi
-    // user_profiles.avatar ở sso_management (nguồn chính) và đồng bộ user sang
-    // các app qua outbox. Trả về URL public của avatar mới để FE cập nhật ngay.
-    async setAvatar(userId, file) {
-        const avatar = await (0, coreClient_1.uploadAvatar)(userId, file);
-        await this.userRepository.setAvatar(userId, avatar, userId);
-        await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
-        return (0, avatarUpload_1.toPublicAvatarUrl)(avatar);
+    // Lưu file ở api-sso + ghi DB + đồng bộ (AvatarService). Trả URL public để
+    // FE cập nhật ngay.
+    setAvatar(userId, file) {
+        return this.avatarService.replace(userId, file, userId);
     }
     async changePassword(userId, oldPassword, newPassword) {
         const currentHash = await this.userRepository.getPasswordHash(userId);
@@ -86,5 +83,6 @@ exports.AccountService = AccountService = __decorate([
     (0, tsyringe_1.injectable)(),
     __metadata("design:paramtypes", [userRepository_1.UserRepository,
         sessionRepository_1.SessionRepository,
-        syncService_1.SyncService])
+        syncService_1.SyncService,
+        avatarService_1.AvatarService])
 ], AccountService);

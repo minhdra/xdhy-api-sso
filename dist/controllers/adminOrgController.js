@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminOrgController = void 0;
 const tsyringe_1 = require("tsyringe");
 const AppError_1 = require("../errors/AppError");
+const avatarService_1 = require("../services/avatarService");
 const orgService_1 = require("../services/orgService");
 const syncService_1 = require("../services/syncService");
 // Controller mỏng: mọi handler cùng khuôn đọc body -> gọi service -> res.json,
@@ -28,9 +29,10 @@ function handle(fn) {
 }
 const ok = (message, extra = {}) => ({ success: true, message, ...extra });
 let AdminOrgController = class AdminOrgController {
-    constructor(org, sync) {
+    constructor(org, sync, avatar) {
         this.org = org;
         this.sync = sync;
+        this.avatar = avatar;
         // ===== Người dùng =====
         this.searchUsers = handle((req) => this.org.searchUsers(req.body));
         this.getUser = handle((req) => this.org.getUser(String(req.params.user_id)));
@@ -49,6 +51,10 @@ let AdminOrgController = class AdminOrgController {
             return ok('Đã cập nhật trạng thái người dùng.');
         });
         this.resetPassword = handle(async (req, actor) => ok('Đã đặt lại mật khẩu.', await this.org.resetPassword(req.body.user_id, actor)));
+        // multipart field "file" (avatarUpload) - admin đổi avatar hộ user.
+        this.setUserAvatar = handle(async (req, actor) => ok('Đã cập nhật ảnh đại diện.', {
+            avatar: await this.avatar.replace(String(req.params.user_id), req.file, actor),
+        }));
         this.setUserRoles = handle(async (req, actor) => {
             await this.org.setUserRoles(String(req.params.user_id), req.body.role_ids, actor);
             return ok('Đã cập nhật nhóm quyền.');
@@ -105,5 +111,6 @@ exports.AdminOrgController = AdminOrgController;
 exports.AdminOrgController = AdminOrgController = __decorate([
     (0, tsyringe_1.injectable)(),
     __metadata("design:paramtypes", [orgService_1.OrgService,
-        syncService_1.SyncService])
+        syncService_1.SyncService,
+        avatarService_1.AvatarService])
 ], AdminOrgController);

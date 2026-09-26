@@ -18,6 +18,7 @@ import {
   type UserIdInput,
   type UserIdsInput,
 } from '../schemas/adminOrg.schema';
+import { AvatarService } from '../services/avatarService';
 import { OrgService } from '../services/orgService';
 import { SyncService } from '../services/syncService';
 
@@ -42,6 +43,7 @@ export class AdminOrgController {
   constructor(
     private org: OrgService,
     private sync: SyncService,
+    private avatar: AvatarService,
   ) {}
 
   // ===== Người dùng =====
@@ -65,6 +67,12 @@ export class AdminOrgController {
   });
   resetPassword = handle(async (req, actor) =>
     ok('Đã đặt lại mật khẩu.', await this.org.resetPassword((req.body as UserIdInput).user_id, actor)),
+  );
+  // multipart field "file" (avatarUpload) - admin đổi avatar hộ user.
+  setUserAvatar = handle(async (req, actor) =>
+    ok('Đã cập nhật ảnh đại diện.', {
+      avatar: await this.avatar.replace(String(req.params.user_id), req.file, actor),
+    }),
   );
   setUserRoles = handle(async (req, actor) => {
     await this.org.setUserRoles(String(req.params.user_id), (req.body as SetUserRolesInput).role_ids, actor);

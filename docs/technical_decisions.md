@@ -200,3 +200,11 @@ ra vẫn chạy độc lập (có người dùng/tổ chức/tính năng riêng)
 - **Không đồng bộ mật khẩu:** đăng nhập luôn qua api-sso; bản sao `build_management` của user mới có
   `password='!sso'` (không phải hash hợp lệ).
 
+## Avatar lưu lại ở api-sso (26/09/2026) — thay mục "Avatar lưu ở api-core"
+
+**Chọn:** api-sso tự lưu file avatar theo format thư mục SSO (`uploads/avatars/<username>--<user_id>/`).
+**Vì sao:** sau khi tách, api-sso là nguồn chính user và mọi app nhận user qua đồng bộ — để file ở api-core
+(tài chính) thì app Công việc/chat/meeting phụ thuộc vào app tài chính còn sống, ngược mục tiêu "tách app
+vẫn chạy độc lập". Đánh đổi: 2 dạng path cùng tồn tại (api-core cũ + SSO mới) — FE các app phải nhận cả
+2 (`resolveUploadUrl`).
+
