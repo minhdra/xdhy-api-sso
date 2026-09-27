@@ -42,7 +42,8 @@ export const createUserSchema = z
       .min(1, 'Tên đăng nhập là bắt buộc')
       .max(150)
       .regex(/^[A-Za-z0-9._@-]+$/, 'Tên đăng nhập không được có dấu cách/ký tự đặc biệt'),
-    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100),
+    // Bỏ trống = mật khẩu mặc định (orgService DEFAULT_NEW_PASSWORD) - form SSO không còn ô nhập.
+    password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100).optional(),
     role_ids: z.array(z.string().min(1)).optional(),
   })
   .openapi('AdminCreateUserRequest');

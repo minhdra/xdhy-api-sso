@@ -22,6 +22,10 @@ import { hashPassword } from '../utilities/password';
 
 import { SyncService } from './syncService';
 
+// Mật khẩu ban đầu khi admin tạo user không nhập (form SSO đã bỏ ô mật khẩu) -
+// admin báo cho người dùng, người dùng tự đổi ở trang Tài khoản > Mật khẩu.
+export const DEFAULT_NEW_PASSWORD = '123456';
+
 // role_code của nhóm "Quản trị hệ thống" - chốt chặn admin (a_IsUserAdmin).
 const ADMIN_ROLE_CODE = 'sa';
 
@@ -95,7 +99,7 @@ export class OrgService {
       await this.repo.createUser({
         user_id: userId,
         user_name: input.user_name,
-        password: await hashPassword(input.password),
+        password: await hashPassword(input.password || DEFAULT_NEW_PASSWORD),
         branch_id: input.branch_id,
         department_id: input.department_id,
         position_id: input.position_id,

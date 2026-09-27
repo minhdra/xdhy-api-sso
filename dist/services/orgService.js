@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.OrgService = void 0;
+exports.OrgService = exports.DEFAULT_NEW_PASSWORD = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const tsyringe_1 = require("tsyringe");
@@ -24,6 +24,9 @@ const orgRepository_1 = require("../repositories/orgRepository");
 const sessionRepository_1 = require("../repositories/sessionRepository");
 const password_1 = require("../utilities/password");
 const syncService_1 = require("./syncService");
+// Mật khẩu ban đầu khi admin tạo user không nhập (form SSO đã bỏ ô mật khẩu) -
+// admin báo cho người dùng, người dùng tự đổi ở trang Tài khoản > Mật khẩu.
+exports.DEFAULT_NEW_PASSWORD = '123456';
 // role_code của nhóm "Quản trị hệ thống" - chốt chặn admin (a_IsUserAdmin).
 const ADMIN_ROLE_CODE = 'sa';
 // Lỗi nghiệp vụ proc (p_error_code != 0) -> Database throw Error(message) ->
@@ -87,7 +90,7 @@ let OrgService = class OrgService {
             await this.repo.createUser({
                 user_id: userId,
                 user_name: input.user_name,
-                password: await (0, password_1.hashPassword)(input.password),
+                password: await (0, password_1.hashPassword)(input.password || exports.DEFAULT_NEW_PASSWORD),
                 branch_id: input.branch_id,
                 department_id: input.department_id,
                 position_id: input.position_id,

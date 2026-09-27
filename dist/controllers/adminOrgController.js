@@ -36,7 +36,15 @@ let AdminOrgController = class AdminOrgController {
         // ===== Người dùng =====
         this.searchUsers = handle((req) => this.org.searchUsers(req.body));
         this.getUser = handle((req) => this.org.getUser(String(req.params.user_id)));
-        this.createUser = handle(async (req, actor) => ok('Đã thêm người dùng.', { user_id: await this.org.createUser(req.body, actor) }));
+        this.createUser = handle(async (req, actor) => {
+            const input = req.body;
+            const userId = await this.org.createUser(input, actor);
+            // default_password: có khi dùng mật khẩu mặc định - FE báo lại cho admin.
+            return ok('Đã thêm người dùng.', {
+                user_id: userId,
+                default_password: input.password ? null : orgService_1.DEFAULT_NEW_PASSWORD,
+            });
+        });
         this.updateUser = handle(async (req, actor) => {
             await this.org.updateUser(req.body, actor);
             return ok('Đã cập nhật người dùng.');

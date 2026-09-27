@@ -19,7 +19,7 @@ import {
   type UserIdsInput,
 } from '../schemas/adminOrg.schema';
 import { AvatarService } from '../services/avatarService';
-import { OrgService } from '../services/orgService';
+import { DEFAULT_NEW_PASSWORD, OrgService } from '../services/orgService';
 import { SyncService } from '../services/syncService';
 
 type Handler = (req: Request, actorId: string) => Promise<unknown>;
@@ -49,9 +49,15 @@ export class AdminOrgController {
   // ===== Người dùng =====
   searchUsers = handle((req) => this.org.searchUsers(req.body));
   getUser = handle((req) => this.org.getUser(String(req.params.user_id)));
-  createUser = handle(async (req, actor) =>
-    ok('Đã thêm người dùng.', { user_id: await this.org.createUser(req.body as CreateUserInput, actor) }),
-  );
+  createUser = handle(async (req, actor) => {
+    const input = req.body as CreateUserInput;
+    const userId = await this.org.createUser(input, actor);
+    // default_password: có khi dùng mật khẩu mặc định - FE báo lại cho admin.
+    return ok('Đã thêm người dùng.', {
+      user_id: userId,
+      default_password: input.password ? null : DEFAULT_NEW_PASSWORD,
+    });
+  });
   updateUser = handle(async (req, actor) => {
     await this.org.updateUser(req.body as UpdateUserInput, actor);
     return ok('Đã cập nhật người dùng.');
