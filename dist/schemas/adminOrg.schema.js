@@ -22,7 +22,8 @@ const userFields = {
     gender: (0, common_schema_1.optionalNumber)(),
     date_of_birth: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày sinh dạng YYYY-MM-DD').nullable().optional(),
     email: zod_1.z.string().trim().email('Email không hợp lệ').max(150),
-    phone_number: (0, common_schema_1.optionalString)(),
+    // Bắt buộc: app chat từ chối user không có số điện thoại (và form cũ build-web cũng bắt buộc).
+    phone_number: zod_1.z.string().trim().min(1, 'Số điện thoại là bắt buộc').max(20),
     description: (0, common_schema_1.optionalString)(),
 };
 exports.searchUserSchema = zod_1.z

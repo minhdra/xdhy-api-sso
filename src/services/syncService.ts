@@ -17,7 +17,19 @@ const ALL_TARGETS: SyncTarget[] = ['finance', 'task', 'chat', 'meeting'];
 const ORG_TARGETS: SyncTarget[] = ['finance', 'task'];
 const USER_ONLY_TARGETS: SyncTarget[] = ['chat', 'meeting'];
 
-class SyncHttpError extends Error {}
+class SyncHttpError extends Error {
+  constructor(
+    message: string,
+    public status: number | null = null,
+  ) {
+    super(message);
+  }
+  // Đích từ chối dữ liệu (400/404/409/422...) - gửi lại y nguyên vẫn lỗi. Trừ
+  // 408/429 (tạm thời) và lỗi mạng/5xx (status null hoặc >= 500) thì thử lại.
+  get permanent(): boolean {
+    return this.status !== null && this.status >= 400 && this.status < 500 && ![408, 429].includes(this.status);
+  }
+}
 
 // Hạ dữ liệu hệ thống tên "Nguyễn Văn An" -> first/middle/last như api-core cũ
 // (UserService.splitFullName) - chat/meeting cần 3 phần riêng.
@@ -123,8 +135,16 @@ export class SyncService {
             failed++;
             const message = (error as Error).message;
             console.warn(`[sync] ${target} ${row.entity}:${row.entity_id} lỗi (lần ${row.attempts + 1}): ${message}`);
+            // Đích từ chối dữ liệu (vd thiếu số điện thoại) -> 'failed' ngay và
+            // gửi tiếp dòng sau: thử lại không có ích, và để nguyên sẽ chặn cả
+            // hàng đợi của đích này hàng giờ (FIFO). Admin sửa dữ liệu rồi bấm
+            // "Thử lại lỗi" ở tab Đồng bộ.
+            if (error instanceof SyncHttpError && error.permanent) {
+              await this.outbox.markError(row.id, message, 1);
+              continue;
+            }
             await this.outbox.markError(row.id, message, config.sync.maxAttempts);
-            return; // giữ thứ tự - target này chờ lượt sau
+            return; // lỗi tạm thời (mạng/5xx) - giữ thứ tự, target này chờ lượt sau
           }
         }
       }),
@@ -278,7 +298,7 @@ export class SyncService {
     }
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      throw new SyncHttpError(`POST ${path}: HTTP ${res.status} ${text.slice(0, 300)}`);
+      throw new SyncHttpError(`POST ${path}: HTTP ${res.status} ${text.slice(0, 300)}`, res.status);
     }
   }
 }
