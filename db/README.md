@@ -13,6 +13,7 @@
 > | `0003_delete_role_without_role_functions.sql` | `DeleteRole` chỉ xoá mềm `roles` (bảng tính năng thuộc từng app). |
 > | `0004_sync_outbox.sql` | Bảng `a_sync_outbox` - hàng đợi đồng bộ sang app. |
 > | `0005_delete_user_soft.sql` | `DeleteUser` xoá mềm + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, lỗi FK). |
+> | `0008_search_user_newest_first.sql` | `SearchUser` sắp xếp người mới tạo trước (DESC) + giữ đúng thứ tự trang. |
 > | `0007_org_setting.sql` | Bảng `a_org_setting` (1 dòng) - thương hiệu SSO: tên tổ chức/viết tắt/app, khẩu hiệu, chữ trang đăng nhập, màu, footer + link, logo sáng/tối, favicon, ảnh nền đăng nhập. Mặc định = nội dung đang ghi cứng. |
 > | `0006_positions_without_rank_weight.sql` | `GetPositionDropdown`/`SearchPosition` bỏ tham chiếu `rank_weight` (cột không có ở sso_management). |
 

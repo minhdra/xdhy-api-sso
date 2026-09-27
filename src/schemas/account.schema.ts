@@ -1,15 +1,17 @@
 import { z } from '../openapi/zod';
 
-import { optionalNumber, optionalString } from './common.schema';
+import { MOBILE_PHONE, optionalNumber, optionalString, personName } from './common.schema';
 
 // Chỉ các field user tự sửa được. Các field quản trị (branch/department/
 // position/type/first_middle_last_name) do accountService tự nạp lại từ DB
 // rồi merge - client không gửi (xem plan §1c/§1d).
 export const updateProfileSchema = z
   .object({
-    full_name: z.string().min(1, 'Họ tên là bắt buộc'),
+    full_name: personName(),
     email: z.string().email('Email không hợp lệ'),
-    phone_number: optionalString(),
+    phone_number: optionalString().pipe(
+      z.union([z.literal(''), z.string().regex(MOBILE_PHONE, 'Số điện thoại phải có 10 số và bắt đầu bằng 0')]),
+    ),
     // 0 = chưa xác định, 1 = nam, 2 = nữ (theo dữ liệu build_management).
     gender: optionalNumber(),
     // ISO date ('1990-01-31') hoặc rỗng. Postgres tự cast sang date.

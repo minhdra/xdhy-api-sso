@@ -1,6 +1,13 @@
 import { z } from '../openapi/zod';
 
-import { optionalNumber, optionalString } from './common.schema';
+import {
+  birthDate,
+  MOBILE_PHONE,
+  optionalLandline,
+  optionalNumber,
+  optionalString,
+  personName,
+} from './common.schema';
 
 // Quản trị người dùng / chi nhánh / phòng ban / chức vụ / nhóm quyền (chuyển
 // từ api-core sang SSO 26/09/2026). Người thao tác luôn lấy từ req.userId -
@@ -19,13 +26,13 @@ const userFields = {
   branch_id: z.number().int(),
   department_id: z.number().int(),
   type: optionalString(),
-  full_name: z.string().trim().min(1, 'Họ tên là bắt buộc').max(60, 'Họ tên tối đa 60 ký tự'),
+  full_name: personName(),
   gender: optionalNumber(),
-  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày sinh dạng YYYY-MM-DD').nullable().optional(),
+  date_of_birth: birthDate(),
   email: z.string().trim().email('Email không hợp lệ').max(150),
   // Bắt buộc: app chat từ chối user không có số điện thoại (và form cũ build-web cũng bắt buộc).
-  phone_number: z.string().trim().min(1, 'Số điện thoại là bắt buộc').max(20),
-  description: optionalString(),
+  phone_number: z.string().trim().regex(MOBILE_PHONE, 'Số điện thoại phải có 10 số và bắt đầu bằng 0'),
+  description: optionalString().pipe(z.string().max(250, 'Ghi chú tối đa 250 ký tự')),
 };
 
 export const searchUserSchema = z
@@ -39,9 +46,9 @@ export const createUserSchema = z
     user_name: z
       .string()
       .trim()
-      .min(1, 'Tên đăng nhập là bắt buộc')
-      .max(150)
-      .regex(/^[A-Za-z0-9._@-]+$/, 'Tên đăng nhập không được có dấu cách/ký tự đặc biệt'),
+      .min(3, 'Tên đăng nhập tối thiểu 3 ký tự')
+      .max(50, 'Tên đăng nhập tối đa 50 ký tự')
+      .regex(/^[a-z0-9._-]+$/, 'Tên đăng nhập chỉ chữ thường không dấu, số và . _ -'),
     // Bỏ trống = mật khẩu mặc định (orgService DEFAULT_NEW_PASSWORD) - form SSO không còn ô nhập.
     password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100).optional(),
     role_ids: z.array(z.string().min(1)).optional(),
@@ -76,9 +83,9 @@ export type SetUserRolesInput = z.infer<typeof setUserRolesSchema>;
 
 // ===== Chi nhánh / phòng ban =====
 const contactFields = {
-  phone: optionalString(),
-  fax: optionalString(),
-  address: optionalString(),
+  phone: optionalLandline(),
+  fax: optionalLandline(),
+  address: optionalString().pipe(z.string().max(250, 'Địa chỉ tối đa 250 ký tự')),
 };
 
 export const searchBranchSchema = z.object(pagination).openapi('AdminSearchBranchRequest');

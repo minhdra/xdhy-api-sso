@@ -8,9 +8,9 @@ const common_schema_1 = require("./common.schema");
 // rồi merge - client không gửi (xem plan §1c/§1d).
 exports.updateProfileSchema = zod_1.z
     .object({
-    full_name: zod_1.z.string().min(1, 'Họ tên là bắt buộc'),
+    full_name: (0, common_schema_1.personName)(),
     email: zod_1.z.string().email('Email không hợp lệ'),
-    phone_number: (0, common_schema_1.optionalString)(),
+    phone_number: (0, common_schema_1.optionalString)().pipe(zod_1.z.union([zod_1.z.literal(''), zod_1.z.string().regex(common_schema_1.MOBILE_PHONE, 'Số điện thoại phải có 10 số và bắt đầu bằng 0')])),
     // 0 = chưa xác định, 1 = nam, 2 = nữ (theo dữ liệu build_management).
     gender: (0, common_schema_1.optionalNumber)(),
     // ISO date ('1990-01-31') hoặc rỗng. Postgres tự cast sang date.

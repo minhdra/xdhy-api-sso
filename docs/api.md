@@ -108,7 +108,7 @@ thành công đều xếp đồng bộ sang app (xem mục "Đồng bộ"). `pag
 | --- | --- | --- | --- |
 | POST | `/admin/org/users/search` | `{ pageIndex, pageSize, search_content?, branch_id?, department_id? }` | `{ totalItems, page, pageSize, pageCount, data }` (proc `SearchUser`, avatar đã thành URL) |
 | GET | `/admin/org/users/:user_id` | — | Chi tiết cho form sửa + `role_ids` |
-| POST | `/admin/org/users` | `{ user_name, password, full_name, email, phone_number?, gender?, date_of_birth?, branch_id, department_id, position_id, type?, description?, role_ids? }` | Tạo user (bcrypt, `user_id = employee_id = uuid`). 400 nếu trùng tên đăng nhập |
+| POST | `/admin/org/users` | `{ user_name (a-z 0-9 . _ -, 3–50), password? (trống = 123456), full_name (chỉ chữ, 2–60), phone_number (10 số, đầu 0), full_name, email, phone_number?, gender?, date_of_birth?, branch_id, department_id, position_id, type?, description?, role_ids? }` | Tạo user (bcrypt, `user_id = employee_id = uuid`). 400 nếu trùng tên đăng nhập |
 | PUT | `/admin/org/users` | như trên + `user_id`, bỏ `user_name`/`password` | Sửa user; `role_ids` có mặt thì thay toàn bộ nhóm quyền. Không sửa avatar (user tự đổi) |
 | POST | `/admin/org/users/delete` | `{ user_ids }` | **Xoá mềm** (proc `DeleteUser` bản 0005): `active_flag=0` 4 bảng, thu hồi mọi phiên, gỡ quyền app. Không tự xoá chính mình |
 | POST | `/admin/org/users/lock` | `{ user_id, online_flag }` | `online_flag=1` = khoá (`GetUserByAccount` chỉ cho đăng nhập khi `0`) — khoá thì thu hồi luôn mọi phiên. Không tự khoá mình |

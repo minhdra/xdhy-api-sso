@@ -18,13 +18,13 @@ const userFields = {
     branch_id: zod_1.z.number().int(),
     department_id: zod_1.z.number().int(),
     type: (0, common_schema_1.optionalString)(),
-    full_name: zod_1.z.string().trim().min(1, 'Họ tên là bắt buộc').max(60, 'Họ tên tối đa 60 ký tự'),
+    full_name: (0, common_schema_1.personName)(),
     gender: (0, common_schema_1.optionalNumber)(),
-    date_of_birth: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày sinh dạng YYYY-MM-DD').nullable().optional(),
+    date_of_birth: (0, common_schema_1.birthDate)(),
     email: zod_1.z.string().trim().email('Email không hợp lệ').max(150),
     // Bắt buộc: app chat từ chối user không có số điện thoại (và form cũ build-web cũng bắt buộc).
-    phone_number: zod_1.z.string().trim().min(1, 'Số điện thoại là bắt buộc').max(20),
-    description: (0, common_schema_1.optionalString)(),
+    phone_number: zod_1.z.string().trim().regex(common_schema_1.MOBILE_PHONE, 'Số điện thoại phải có 10 số và bắt đầu bằng 0'),
+    description: (0, common_schema_1.optionalString)().pipe(zod_1.z.string().max(250, 'Ghi chú tối đa 250 ký tự')),
 };
 exports.searchUserSchema = zod_1.z
     .object({ ...pagination, branch_id: (0, common_schema_1.optionalNumber)(), department_id: (0, common_schema_1.optionalNumber)() })
@@ -35,9 +35,9 @@ exports.createUserSchema = zod_1.z
     user_name: zod_1.z
         .string()
         .trim()
-        .min(1, 'Tên đăng nhập là bắt buộc')
-        .max(150)
-        .regex(/^[A-Za-z0-9._@-]+$/, 'Tên đăng nhập không được có dấu cách/ký tự đặc biệt'),
+        .min(3, 'Tên đăng nhập tối thiểu 3 ký tự')
+        .max(50, 'Tên đăng nhập tối đa 50 ký tự')
+        .regex(/^[a-z0-9._-]+$/, 'Tên đăng nhập chỉ chữ thường không dấu, số và . _ -'),
     // Bỏ trống = mật khẩu mặc định (orgService DEFAULT_NEW_PASSWORD) - form SSO không còn ô nhập.
     password: zod_1.z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100).optional(),
     role_ids: zod_1.z.array(zod_1.z.string().min(1)).optional(),
@@ -59,9 +59,9 @@ exports.setUserRolesSchema = zod_1.z
     .openapi('AdminSetUserRolesRequest');
 // ===== Chi nhánh / phòng ban =====
 const contactFields = {
-    phone: (0, common_schema_1.optionalString)(),
-    fax: (0, common_schema_1.optionalString)(),
-    address: (0, common_schema_1.optionalString)(),
+    phone: (0, common_schema_1.optionalLandline)(),
+    fax: (0, common_schema_1.optionalLandline)(),
+    address: (0, common_schema_1.optionalString)().pipe(zod_1.z.string().max(250, 'Địa chỉ tối đa 250 ký tự')),
 };
 exports.searchBranchSchema = zod_1.z.object(pagination).openapi('AdminSearchBranchRequest');
 exports.upsertBranchSchema = zod_1.z
