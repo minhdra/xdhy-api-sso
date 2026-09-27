@@ -25,13 +25,15 @@ let SyncOutboxRepository = class SyncOutboxRepository {
         if (!targets.length || !events.length)
             return;
         await this.db.raw(`WITH input AS (
-         SELECT t.target, e.entity, e.op, e.entity_id, e.payload, e.ord, t.tord
+         SELECT t.target, e.x ->> 'entity' AS entity, e.x ->> 'op' AS op,
+                e.x ->> 'entity_id' AS entity_id, e.x -> 'payload' AS payload, e.ord, t.tord
          FROM unnest($1::varchar[]) WITH ORDINALITY AS t(target, tord)
-         CROSS JOIN jsonb_to_recordset($2::jsonb) WITH ORDINALITY
-           AS e(entity varchar, op varchar, entity_id varchar, payload jsonb, ord bigint)
+         -- jsonb_to_recordset không dùng được WITH ORDINALITY kèm danh sách cột
+         -- (lỗi Postgres) -> tách phần tử bằng jsonb_array_elements.
+         CROSS JOIN jsonb_array_elements($2::jsonb) WITH ORDINALITY AS e(x, ord)
        )
        INSERT INTO a_sync_outbox (target, entity, op, entity_id, payload, created_by)
-       SELECT i.target, i.entity, i.op, i.entity_id, i.payload, $3
+       SELECT i.target, i.entity, i.op, i.entity_id, nullif(i.payload, 'null'::jsonb), $3
        FROM input i
        WHERE i.op = 'delete' OR NOT EXISTS (
          SELECT 1 FROM a_sync_outbox o
