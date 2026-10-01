@@ -6,7 +6,3 @@
 .DS_Store
 /keys
 /uploads
-
-# Nhánh main (production) không commit dist - build tại chỗ khi deploy.
-# Nhánh dev vẫn commit dist cho CI server dev.
-/dist
