@@ -1,0 +1,107 @@
+stages:
+  - dev
+
+# dist/ được build sẵn ở máy dev và commit vào repo -> job chỉ deploy, không build.
+# Runner: Windows server (IIS host), shell executor = PowerShell, chạy quyền Administrator/SYSTEM
+# (cần để đăng ký Scheduled Task). Node.js phải cài system-wide.
+# File .env production + keys/private.pem (JWT_PRIVATE_KEY_PATH) phải có sẵn trong DEPLOY_DIR (repo không chứa).
+#
+# Luồng: dừng process cũ -> chép dist + package*.json -> npm i --omit=dev -> chạy lại node dist/index.js
+# qua Scheduled Task (sống độc lập với job, tự chạy lại khi reboot/crash).
+# Không đụng .env, keys/, uploads/, logs/, node_modules/ ở DEPLOY_DIR.
+#
+# Script giữ ASCII (không dấu) để tránh lỗi encoding khi runner ghi file .ps1.
+deploy-server:
+  stage: dev
+  tags:
+    - dev
+  resource_group: production
+  variables:
+    DEPLOY_DIR: 'C:\inetpub\wwwroot\XayDung\api-sso'
+    TASK_NAME: 'api-sso'
+  script:
+    - |
+      $ErrorActionPreference = 'Stop'
+      $src = $env:CI_PROJECT_DIR
+      $dst = $env:DEPLOY_DIR
+      $task = $env:TASK_NAME
+
+      function Fail($msg) { Write-Host "ERROR: $msg"; exit 1 }
+
+      # --- 0. kiem tra dau vao
+      if (-not (Test-Path "$src\dist\index.js")) { Fail 'Khong co dist\index.js trong repo. Chay npm run build roi commit ca thu muc dist.' }
+      if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { Fail 'Khong tim thay npm trong PATH cua runner (cai Node.js system-wide).' }
+      if (-not (Test-Path "$dst\.env")) { Fail "Thieu $dst\.env - tao .env production tren server truoc." }
+
+      # Port lay tu .env dich (config.ts: PORT mac dinh 6005)
+      $port = 6005
+      $m = Select-String -Path "$dst\.env" -Pattern '^\s*PORT\s*=\s*(\d+)' | Select-Object -First 1
+      if ($m) { $port = [int]$m.Matches[0].Groups[1].Value }
+      Write-Host "Deploy $src -> $dst (port $port)"
+
+      # --- 1. kill process cu
+      # Phai dung TRUOC khi chep/npm i: Windows khoa file .node cua bcrypt khi dang chay.
+      if (Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue) {
+        Stop-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+      }
+      # Chot chan: process mo coi (chay tay...) con giu port thi kill not.
+      foreach ($c in @(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)) {
+        Write-Host "Kill PID $($c.OwningProcess) dang giu port $port"
+        Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+      }
+      Start-Sleep -Seconds 2
+
+      # --- 2. chep file (robocopy exit code < 8 la OK; /MIR chi ap dung cho dist)
+      robocopy "$src\dist" "$dst\dist" /MIR /NFL /NDL /NJH /NJS /NP
+      if ($LASTEXITCODE -ge 8) { Fail "robocopy loi (exit $LASTEXITCODE)" }
+      $global:LASTEXITCODE = 0
+      Copy-Item "$src\package.json" $dst -Force
+      # Repo dung pnpm, chua co package-lock.json -> npm i se tu resolve theo range trong package.json.
+      if (Test-Path "$src\package-lock.json") { Copy-Item "$src\package-lock.json" $dst -Force }
+      New-Item -ItemType Directory -Force -Path "$dst\logs" | Out-Null
+
+      # start.cmd sinh ngay tai day. cwd = DEPLOY_DIR vi dotenv doc .env va express phuc vu uploads/ theo process.cwd().
+      @(
+        '@echo off',
+        'cd /d "%~dp0"',
+        'set NODE_ENV=production',
+        'set NODE_OPTIONS=--max-http-header-size=10485760',
+        'node dist\index.js >> logs\api-sso.log 2>&1'
+      ) | Set-Content -Path "$dst\start.cmd" -Encoding ASCII
+
+      # --- 3. npm i (khong dung npm ci: repo dung pnpm, khong co package-lock.json dong bo)
+      # bcrypt tu tai binary native qua install script cua no.
+      Push-Location $dst
+      npm.cmd i --omit=dev --no-audit --no-fund
+      $npmExit = $LASTEXITCODE
+      Pop-Location
+      if ($npmExit -ne 0) { Fail "npm i loi (exit $npmExit)" }
+      $global:LASTEXITCODE = 0
+
+      # --- 4. chay lai bang Scheduled Task (SYSTEM). Start-Process se bi kill khi job ket thuc.
+      $log = "$dst\logs\api-sso.log"
+      if ((Test-Path $log) -and ((Get-Item $log).Length -gt 20MB)) { Move-Item $log "$log.old" -Force }
+
+      $action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c start.cmd' -WorkingDirectory $dst
+      $trigger = New-ScheduledTaskTrigger -AtStartup
+      $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+      $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+      Register-ScheduledTask -TaskName $task -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+      Start-ScheduledTask -TaskName $task
+
+      # --- 5. cho port lang nghe toi da 60s
+      $up = $false
+      for ($i = 0; $i -lt 30; $i++) {
+        Start-Sleep -Seconds 2
+        if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) { $up = $true; break }
+      }
+      if (-not $up) {
+        Write-Host '--- 50 dong cuoi logs\api-sso.log ---'
+        if (Test-Path $log) { Get-Content $log -Tail 50 }
+        Fail "api-sso khong lang nghe port $port sau 60s."
+      }
+      Write-Host "OK: api-sso dang chay o port $port"
+  environment:
+    name: production
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'

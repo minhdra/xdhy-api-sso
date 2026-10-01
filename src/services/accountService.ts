@@ -1,0 +1,89 @@
+import { injectable } from 'tsyringe';
+
+import { toPublicAvatarUrl } from '../config/avatarUpload';
+import { AppError } from '../errors/AppError';
+import { SessionRepository } from '../repositories/sessionRepository';
+import { UserRepository } from '../repositories/userRepository';
+import { hashPassword, verifyPassword } from '../utilities/password';
+
+import { AvatarService } from './avatarService';
+import { SyncService } from './syncService';
+
+export interface UpdateProfilePatch {
+  full_name: string;
+  email: string;
+  phone_number: string;
+  gender: number | null;
+  date_of_birth: string | null;
+}
+
+@injectable()
+export class AccountService {
+  constructor(
+    private userRepository: UserRepository,
+    private sessionRepository: SessionRepository,
+    private syncService: SyncService,
+    private avatarService: AvatarService,
+  ) {}
+
+  // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
+  // để hiển thị, dù user không sửa được các field đó).
+  async getProfile(userId: string) {
+    const profile = await this.userRepository.getAccountProfile(userId);
+    if (!profile) return profile;
+    // avatar: path thô trong DB -> URL trình duyệt tải được (xem toPublicAvatarUrl).
+    return { ...profile, avatar: toPublicAvatarUrl(profile.avatar) };
+  }
+
+  // Chỉ đụng vào các field hồ sơ tự phục vụ - proc a_UpdateSelfProfile không
+  // chạm branch/department/position/type. Avatar có endpoint upload riêng.
+  // Ghi sso_management xong -> outbox đồng bộ user sang các app (SyncService).
+  async updateProfile(userId: string, patch: UpdateProfilePatch): Promise<void> {
+    await this.userRepository.updateSelfProfile({
+      user_id: userId,
+      full_name: patch.full_name,
+      email: patch.email,
+      phone_number: patch.phone_number,
+      gender: patch.gender,
+      date_of_birth: patch.date_of_birth,
+      lu_user_id: userId,
+    });
+    await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
+  }
+
+  // Lưu file ở api-sso + ghi DB + đồng bộ (AvatarService). Trả URL public để
+  // FE cập nhật ngay.
+  setAvatar(userId: string, file: Express.Multer.File): Promise<string | null> {
+    return this.avatarService.replace(userId, file, userId);
+  }
+
+  async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {
+    const currentHash = await this.userRepository.getPasswordHash(userId);
+    if (!currentHash) throw new AppError(404, 'Không tìm thấy tài khoản.');
+
+    const ok = await verifyPassword(oldPassword, currentHash);
+    if (!ok) throw new AppError(400, 'Mật khẩu hiện tại không đúng.');
+
+    const newHash = await hashPassword(newPassword);
+    await this.userRepository.setPassword(userId, newHash, userId);
+  }
+
+  async listSessions(userId: string, currentSessionId: string | null) {
+    const rows = await this.sessionRepository.listByUser(userId);
+    return rows.map((s) => ({ ...s, current: s.session_id === currentSessionId }));
+  }
+
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    currentSessionId: string | null,
+  ): Promise<void> {
+    if (sessionId === currentSessionId) {
+      throw new AppError(400, 'Không thể thu hồi phiên hiện tại - dùng Đăng xuất.');
+    }
+    const affected = await this.sessionRepository.revokeSessionForUser(sessionId, userId);
+    if (affected === 0) {
+      throw new AppError(404, 'Phiên không tồn tại hoặc đã bị thu hồi.');
+    }
+  }
+}

@@ -1,93 +1,139 @@
-# api-sso
+# API SSO
 
+Dịch vụ xác thực tập trung (Single Sign-On) cho toàn hệ thống XDHY — nơi **duy nhất** phát hành/xác thực
+token đăng nhập, quản lý phiên, và quyết định tài khoản nào được dùng ứng dụng nào. Các service khác
+(`api-core`, `api-task-management`) không còn tự làm đăng nhập — chỉ verify chữ ký token do service này
+ký, xây bằng **Node.js + TypeScript + Express**.
 
+## Tech stack
+
+- **Runtime**: Node.js (>= 18), TypeScript 5
+- **Framework**: Express
+- **Dependency Injection**: tsyringe + reflect-metadata
+- **Database**: PostgreSQL (`pg`) — DB riêng `sso_management` (từ 26/09/2026): nguồn chính người dùng/chi
+  nhánh/phòng ban/chức vụ/nhóm quyền, đồng bộ sang các app qua `a_sync_outbox`
+- **Auth**: JWT ký RS256 (`jsonwebtoken`), public key phơi qua JWKS (`jwks-rsa` ở phía service khác đọc
+  lại), mật khẩu hash bằng `bcrypt`
+- **Validate + docs API**: `zod` + `@asteasolutions/zod-to-openapi` + `swagger-ui-express`
+- **Email**: nodemailer (quên mật khẩu)
+- **Package manager**: pnpm
+
+## Cấu trúc thư mục
+
+```
+src/
+  app.ts               # Khởi tạo Express app, middleware, mount routes
+  index.ts              # Entry point, start server
+  config/                # Cấu hình app (env, db, jwt, cookie, email)
+  openapi/               # zod schema -> OpenAPI, Swagger UI (GET /docs)
+  routes/                # auth (login/refresh/logout/me...), account, admin
+  controllers/            # Xử lý request/response
+  services/               # Nghiệp vụ
+  repositories/           # Gọi stored procedure qua Database, SQL thuần cho bảng a_*
+  middlewares/            # requireAuth, validate...
+  schemas/                # zod schema (validate + openapi)
+  models/                 # Kiểu dữ liệu domain
+  errors/                 # AppError + error handler tập trung
+  utilities/              # hash mật khẩu, cây quyền...
+keys/                   # Cặp khoá RS256 ký JWT (KHÔNG commit, .gitignore sẵn)
+db/
+  migrations/             # Migration SQL cho bảng a_* + proc a_* (xem db/README.md)
+docs/
+  architecture.md          # Kiến trúc, vị trí trong hệ thống
+  api.md                   # API contract / endpoint
+  database.md              # Bảng a_* sở hữu + bảng dùng chung đọc lại
+  technical_decisions.md   # Quyết định kỹ thuật + lý do (RS256, cookie domain cha, phân quyền app...)
+  local_dev.md              # Chạy CẢ CỤM hệ thống ở local (không chỉ riêng service này)
+```
 
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Yêu cầu
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- Node.js >= 18
+- pnpm >= 9 (`corepack enable` để tự động dùng đúng version)
+- PostgreSQL (DB `sso_management` — xem [`docs/database.md`](./docs/database.md); tạo mới bằng
+  `node scripts/sso-management/migrate.js --create-db`)
 
-## Add your files
+### Cài đặt
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/build9135232/api-sso.git
-git branch -M main
-git push -uf origin main
+```bash
+pnpm install
+cp .env.example .env   # rồi điền giá trị thật
 ```
 
-## Integrate with your tools
+**Sinh cặp khoá RS256** để ký token (bắt buộc — service không start được nếu thiếu, xem
+`JWT_PRIVATE_KEY_PATH` trong `.env.example`):
 
-* [Set up project integrations](https://gitlab.com/build9135232/api-sso/-/settings/integrations)
+```bash
+mkdir -p keys
+openssl genrsa -out keys/private.pem 2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+```
 
-## Collaborate with your team
+Đừng commit thư mục `keys/` — đã có sẵn trong `.gitignore`. Mỗi môi trường (dev, production) nên có
+cặp khoá riêng.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+**Áp migration** cho các bảng/proc `a_*` (xem quy tắc đầy đủ ở [`db/README.md`](./db/README.md)):
 
-## Test and Deploy
+```bash
+for file in db/migrations/*.sql; do
+  psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f "$file"
+done
+```
 
-Use the built-in continuous integration in GitLab.
+### Chạy dev
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+```bash
+pnpm start
+```
 
-***
+Mặc định lắng nghe ở cổng `6005`. Chỉ chạy riêng `api-sso` sẽ không đủ để đăng nhập/dùng được — cần cả
+`api-core` (đọc `system_users`/`user_profiles`) và thường cần `api-gateway` phía trước. Xem
+[`docs/local_dev.md`](./docs/local_dev.md) để chạy đúng cả cụm.
 
-# Editing this README
+### Build & typecheck
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+pnpm build       # biên dịch ra dist/
+pnpm typecheck    # kiểm tra kiểu TypeScript, không emit
+```
 
-## Suggestions for a good README
+### Kiểm tra API bằng Swagger
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Sau khi chạy dev, mở `http://localhost:6005/docs` (hoặc qua gateway:
+`http://localhost:6688/api/docs/api-sso/`) — tài liệu sinh trực tiếp từ code (zod schema), luôn khớp
+đúng thực tế, tin tài liệu này hơn `docs/api.md` nếu có lệch.
 
-## Name
-Choose a self-explaining name for your project.
+## Docker
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Không có `docker-compose.yml` riêng cho service này — chạy cùng cụm ở gốc repo:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+docker compose -f ../docker-compose.real.yml up -d --build api-sso
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## Deploy (Windows / IIS host, GitLab CI)
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+`dist/` **được commit vào repo** (không còn trong `.gitignore`), CI không build. Quy trình:
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+1. Dev: `pnpm build` → `git add dist` → commit → push nhánh `dev`. **Quên build = deploy code cũ.**
+2. GitLab runner (Windows, tag `dev`) chạy job `deploy-server` trong [`.gitlab-ci.yml`](./.gitlab-ci.yml)
+   (toàn bộ logic nằm trong 1 file này): dừng process cũ (Scheduled Task `api-sso` + kill theo port), đồng bộ
+   `dist/` + `package*.json` vào `C:\inetpub\wwwroot\XayDung\api-sso`, `npm i --omit=dev`, đăng ký lại
+   Scheduled Task và chạy `node dist\index.js` (log ở `logs\api-sso.log`; `start.cmd` do job tự sinh ra).
+3. Task chạy dưới SYSTEM, tự khởi động lại khi reboot / crash.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Yêu cầu trên server: Node.js cài system-wide, `.env` production và `keys\private.pem` đặt sẵn ở thư mục đích
+(repo không chứa; job không đụng `.env`, `keys/`, `uploads/`, `logs/`, `node_modules/`), runner có quyền
+Administrator. Repo chưa có `package-lock.json` nên `npm i` resolve theo range trong `package.json`.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Tài liệu dự án
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- [`docs/architecture.md`](./docs/architecture.md) — Kiến trúc, vị trí trong toàn hệ thống
+- [`docs/api.md`](./docs/api.md) — API contract / endpoint (login, account, apps, admin...)
+- [`docs/database.md`](./docs/database.md) — Bảng `a_*` sở hữu + bảng dùng chung đọc lại qua proc có sẵn
+- [`docs/technical_decisions.md`](./docs/technical_decisions.md) — Quyết định kỹ thuật + lý do (RS256 +
+  JWKS, cookie domain cha, thu hồi phiên, phân quyền ứng dụng theo người dùng...)
+- [`docs/local_dev.md`](./docs/local_dev.md) — Chạy cả cụm hệ thống (7 service) ở môi trường local
+- [`db/README.md`](./db/README.md) — Quy tắc migration cho bảng/proc `a_*`
