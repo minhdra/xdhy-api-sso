@@ -38,6 +38,9 @@ phần "Trước khi đoán" và "Vận hành", 2 mục dễ gây sai lầm tố
   frontend nào (`build-web`/`task-web`/`sso-web`) qua khỏi màn hình loading (`GET /me?app=` gọi lúc
   bootstrap) — xem [`docs/local_dev.md`](./docs/local_dev.md) trước khi kết luận "app kẹt loading" là bug
   ở frontend.
+- Tên cookie đăng nhập lấy từ `ACCESS_COOKIE`/`REFRESH_COOKIE` (`config/cookie.ts`, có tiền tố
+  `AUTH_COOKIE_PREFIX`) — không ghi cứng `'access_token'` ở chỗ mới; service khác đọc cookie cũng phải
+  theo biến này (xem [`docs/architecture.md`](./docs/architecture.md) mục cookie).
 - `COOKIE_DOMAIN` để **rỗng** khi chạy local (không set `.xaydung.vn` hay tương tự) — set nhầm khiến
   cookie phiên không set được trên `localhost`. Luôn mở bằng `http://localhost:<port>`, không
   `127.0.0.1` — 2 hostname khác nhau, cookie phiên không theo qua được (chi tiết

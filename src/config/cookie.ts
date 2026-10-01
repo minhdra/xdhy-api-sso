@@ -2,8 +2,12 @@ import { type CookieOptions } from 'express';
 
 import { config } from './config';
 
-export const ACCESS_COOKIE = 'access_token';
-export const REFRESH_COOKIE = 'refresh_token';
+// AUTH_COOKIE_PREFIX (01/10/2026): server dev và production cùng domain cha
+// .xdhy.vn - dev đặt vd "dev_" để cookie 2 môi trường không ghi đè nhau.
+// Production để trống = tên cũ. Mọi service đọc cookie phải đặt cùng giá trị.
+const COOKIE_PREFIX = process.env.AUTH_COOKIE_PREFIX ?? '';
+export const ACCESS_COOKIE = `${COOKIE_PREFIX}access_token`;
+export const REFRESH_COOKIE = `${COOKIE_PREFIX}refresh_token`;
 
 const REMEMBER_ACCESS_TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 1d
 const REMEMBER_REFRESH_TOKEN_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30d

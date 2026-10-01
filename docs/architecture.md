@@ -82,6 +82,13 @@ discovery mà `jwks-rsa` mong đợi). `api-gateway`, `api-task-management` veri
 Cookie `access_token`/`refresh_token` set `Domain=.{domain-cha}` (`COOKIE_DOMAIN`) để dùng chung được
 giữa `build-web`/`sso-web`/các app tương lai (chat/meeting) trên cùng domain cha.
 
+**Tiền tố tên cookie `AUTH_COOKIE_PREFIX` (01/10/2026):** server dev (`dev.xdhy.vn`, `congtrinh`, `congviec`…)
+và production (`xdhy.vn`, `fico`, `taka`…) dùng chung domain cha `.xdhy.vn`, cookie cùng tên sẽ ghi đè nhau
+(đăng nhập dev làm production bị đăng xuất, token dev ký bằng key khác). Server dev đặt
+`AUTH_COOKIE_PREFIX=dev_` → `dev_access_token`/`dev_refresh_token`; production để trống = tên cũ.
+**Mọi service đọc cookie phải đặt cùng giá trị**: api-sso, api-core, api-gateway, api-financial,
+api-task, chat, meeting — thiếu ở đâu thì service đó trả 401 trên dev.
+
 **"Ghi nhớ đăng nhập" (`remember`):**
 
 | | `remember=false` (mặc định) | `remember=true` |
