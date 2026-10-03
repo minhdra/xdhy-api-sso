@@ -47,6 +47,24 @@ export class SyncSnapshotRepository {
     return rows[0] ?? null;
   }
 
+  // User đã xoá mềm - để gửi bản "nhả định danh" sang chat/meeting (xem
+  // SyncService.releasedUserPayload).
+  async deletedUser(userId: string): Promise<UserSnapshot | null> {
+    const rows = await this.db.raw(
+      `SELECT s.user_id, s.user_name, s.type, s.description, s.online_flag,
+              u.first_name, u.middle_name, u.last_name, u.full_name, u.avatar, u.gender,
+              to_char(u.date_of_birth, 'YYYY-MM-DD') AS date_of_birth, u.email, u.phone_number,
+              e.branch_id, e.department_id, e.position_id, s.created_by_user_id,
+              false AS is_admin
+       FROM system_users s
+       LEFT JOIN user_profiles u ON u.user_id = s.user_id
+       LEFT JOIN employee e ON e.employee_id = s.user_id
+       WHERE s.user_id = $1 AND s.active_flag = 0`,
+      [userId],
+    );
+    return rows[0] ?? null;
+  }
+
   async userRoles(userId: string): Promise<{ user_role_id: string; role_id: string; created_by_user_id: string }[]> {
     return this.db.raw(
       `SELECT ur.user_role_id, ur.role_id, ur.created_by_user_id

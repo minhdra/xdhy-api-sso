@@ -243,6 +243,14 @@ let SyncService = class SyncService {
     async deliverUserOnly(row, actor) {
         const u = await this.snapshot.user(row.entity_id);
         if (!u) {
+            // Chat/meeting xoá MỀM nhưng vẫn giữ nickname (= user_name), email, SĐT
+            // với ràng buộc UNIQUE -> tạo lại người dùng cùng tên/email/SĐT bị từ chối
+            // (lỗi thật 04/10/2026: "nickname must be unique"). Trước khi xoá, upsert
+            // (theo id) bản ghi cũ với định danh gắn hậu tố để nhả các giá trị đó.
+            // Khôi phục sau này gửi lại upsert thường -> định danh thật quay lại.
+            const deleted = await this.snapshot.deletedUser(row.entity_id);
+            if (deleted)
+                await this.post(row.target, 'users', this.releasedUserPayload(deleted, actor));
             await this.post(row.target, 'users/delete', {
                 json_list: [{ user_id: row.entity_id }],
                 updated_by_id: actor,
@@ -265,6 +273,18 @@ let SyncService = class SyncService {
             role: u.is_admin ? 'admin' : 'user',
             active_flag: 1,
             created_by_user_id: actor,
+        };
+    }
+    releasedUserPayload(u, actor) {
+        const tag = u.user_id.replace(/[^0-9a-f]/gi, '').slice(0, 8).toLowerCase();
+        // SĐT giả 10 số bắt đầu "00" (số thật không có dạng này) - không trùng số thật.
+        const phone = `00${String(parseInt(tag || '0', 16) % 1e8).padStart(8, '0')}`;
+        return {
+            ...this.chatUserPayload(u, actor),
+            user_name: `${u.user_name}.del-${tag}`,
+            email: u.email ? `del-${tag}.${u.email}` : `del-${tag}@deleted.invalid`,
+            phone_number: phone,
+            active_flag: 0,
         };
     }
     async post(target, path, body) {

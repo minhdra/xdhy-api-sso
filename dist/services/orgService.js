@@ -126,6 +126,11 @@ let OrgService = class OrgService {
         const events = [{ entity: 'user', op: 'upsert', entity_id: userId }];
         if (input.role_ids?.length)
             events.push({ entity: 'user_roles', op: 'upsert', entity_id: userId });
+        // Tạo mới đè tên của tài khoản đã xoá: gửi lại "xoá" tài khoản cũ TRƯỚC để
+        // chat/meeting nhả nickname/email/SĐT cũ (SyncService.deliverUserOnly) -
+        // tài khoản xoá trước bản sửa 04/10/2026 vẫn còn giữ các giá trị đó.
+        if (deleted)
+            events.unshift({ entity: 'user', op: 'delete', entity_id: deleted.user_id });
         await this.sync.notify(events, actorId);
         return userId;
     }
