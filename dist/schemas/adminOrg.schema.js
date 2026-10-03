@@ -41,6 +41,10 @@ exports.createUserSchema = zod_1.z
     // Bỏ trống = mật khẩu mặc định (orgService DEFAULT_NEW_PASSWORD) - form SSO không còn ô nhập.
     password: zod_1.z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100).optional(),
     role_ids: zod_1.z.array(zod_1.z.string().min(1)).optional(),
+    // Trùng tên đăng nhập với tài khoản ĐÃ XOÁ: lần gửi đầu bỏ trống -> 409 kèm
+    // thông tin tài khoản đó; admin chọn rồi gửi lại "restore" (khôi phục, giữ
+    // user_id + lịch sử) hoặc "new" (tạo tài khoản mới, user_id mới).
+    deleted_user_action: zod_1.z.enum(['restore', 'new']).optional(),
 })
     .openapi('AdminCreateUserRequest');
 exports.updateUserSchema = zod_1.z

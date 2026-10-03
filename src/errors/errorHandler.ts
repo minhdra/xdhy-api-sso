@@ -11,7 +11,12 @@ export const errorHandler = (err: Error, req: Request, res: Response, _next: Nex
   if (err instanceof AppError) {
     return res
       .status(err.statusCode)
-      .json({ success: false, message: err.message, request_id: requestId });
+      .json({
+        success: false,
+        message: err.message,
+        ...(err.data === undefined ? {} : { data: err.data }),
+        request_id: requestId,
+      });
   }
 
   res.status(500).json({
