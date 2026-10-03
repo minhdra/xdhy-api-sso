@@ -52,6 +52,10 @@ export const createUserSchema = z
     // Bỏ trống = mật khẩu mặc định (orgService DEFAULT_NEW_PASSWORD) - form SSO không còn ô nhập.
     password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự').max(100).optional(),
     role_ids: z.array(z.string().min(1)).optional(),
+    // Trùng tên đăng nhập với tài khoản ĐÃ XOÁ: lần gửi đầu bỏ trống -> 409 kèm
+    // thông tin tài khoản đó; admin chọn rồi gửi lại "restore" (khôi phục, giữ
+    // user_id + lịch sử) hoặc "new" (tạo tài khoản mới, user_id mới).
+    deleted_user_action: z.enum(['restore', 'new']).optional(),
   })
   .openapi('AdminCreateUserRequest');
 export type CreateUserInput = z.infer<typeof createUserSchema>;

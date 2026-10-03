@@ -85,6 +85,19 @@ let OrgService = class OrgService {
         if (await this.repo.userNameExists(input.user_name)) {
             throw new AppError_1.AppError(400, 'Tên đăng nhập đã tồn tại.');
         }
+        // Trùng với tài khoản đã xoá mềm: hỏi admin khôi phục hay tạo mới. Khôi phục
+        // giữ user_id -> các app nhận sync upsert theo id tự bật lại user cũ (kể cả
+        // chat/meeting, nơi email/SĐT có ràng buộc unique, không tạo bản ghi mới).
+        const deleted = await this.repo.findDeletedByUserName(input.user_name);
+        if (deleted && !input.deleted_user_action) {
+            throw new AppError_1.AppError(409, 'Tên đăng nhập trùng với một tài khoản đã xoá.', {
+                code: 'DELETED_USER_EXISTS',
+                deleted_user: deleted,
+            });
+        }
+        if (deleted && input.deleted_user_action === 'restore') {
+            return this.restoreDeletedUser(deleted.user_id, input, actorId);
+        }
         const userId = (0, uuid_1.v4)();
         try {
             await this.repo.createUser({
@@ -113,7 +126,43 @@ let OrgService = class OrgService {
         const events = [{ entity: 'user', op: 'upsert', entity_id: userId }];
         if (input.role_ids?.length)
             events.push({ entity: 'user_roles', op: 'upsert', entity_id: userId });
+        // Tạo mới đè tên của tài khoản đã xoá: gửi lại "xoá" tài khoản cũ TRƯỚC để
+        // chat/meeting nhả nickname/email/SĐT cũ (SyncService.deliverUserOnly) -
+        // tài khoản xoá trước bản sửa 04/10/2026 vẫn còn giữ các giá trị đó.
+        if (deleted)
+            events.unshift({ entity: 'user', op: 'delete', entity_id: deleted.user_id });
         await this.sync.notify(events, actorId);
+        return userId;
+    }
+    async restoreDeletedUser(userId, input, actorId) {
+        try {
+            await this.repo.restoreUser(userId, await (0, password_1.hashPassword)(input.password || exports.DEFAULT_NEW_PASSWORD), actorId);
+            await this.repo.updateUser({
+                user_id: userId,
+                branch_id: input.branch_id,
+                department_id: input.department_id,
+                position_id: input.position_id,
+                type: input.type,
+                description: input.description,
+                ...splitFullName(input.full_name),
+                full_name: input.full_name.trim(),
+                avatar: await this.rawAvatar(userId),
+                gender: input.gender,
+                date_of_birth: input.date_of_birth ?? null,
+                email: input.email,
+                phone_number: input.phone_number,
+                lu_user_id: actorId,
+            });
+            // Nhóm quyền cũ đã bị tắt lúc xoá - ghi lại đúng theo form (rỗng = không nhóm).
+            await this.writeUserRoles(userId, input.role_ids ?? [], actorId);
+        }
+        catch (error) {
+            throw toAppError(error);
+        }
+        await this.sync.notify([
+            { entity: 'user', op: 'upsert', entity_id: userId },
+            { entity: 'user_roles', op: 'upsert', entity_id: userId },
+        ], actorId);
         return userId;
     }
     async updateUser(input, actorId) {

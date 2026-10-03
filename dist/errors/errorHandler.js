@@ -9,7 +9,12 @@ const errorHandler = (err, req, res, _next) => {
     if (err instanceof AppError_1.AppError) {
         return res
             .status(err.statusCode)
-            .json({ success: false, message: err.message, request_id: requestId });
+            .json({
+            success: false,
+            message: err.message,
+            ...(err.data === undefined ? {} : { data: err.data }),
+            request_id: requestId,
+        });
     }
     res.status(500).json({
         success: false,

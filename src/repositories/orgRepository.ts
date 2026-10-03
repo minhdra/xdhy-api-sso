@@ -162,11 +162,43 @@ export class OrgRepository {
     return result?.email ?? null;
   }
 
+  // Chỉ tính user đang hoạt động - user đã xoá mềm không giữ chỗ tên đăng nhập
+  // (index ux_system_users_user_name_active, migration 0010).
   async userNameExists(userName: string): Promise<boolean> {
-    const rows = await this.db.raw(`SELECT 1 FROM system_users WHERE lower(user_name) = lower($1) LIMIT 1`, [
-      userName,
-    ]);
+    const rows = await this.db.raw(
+      `SELECT 1 FROM system_users WHERE lower(user_name) = lower($1) AND active_flag = 1 LIMIT 1`,
+      [userName],
+    );
     return rows.length > 0;
+  }
+
+  // Tài khoản đã xoá mềm gần nhất cùng tên đăng nhập (để hỏi admin khôi phục).
+  async findDeletedByUserName(userName: string): Promise<{
+    user_id: string;
+    user_name: string;
+    full_name: string | null;
+    email: string | null;
+    phone_number: string | null;
+    deleted_at: string | null;
+  } | null> {
+    const rows = await this.db.raw(
+      `SELECT s.user_id, s.user_name, coalesce(u.full_name, e.fullname) AS full_name,
+              coalesce(u.email, e.email) AS email,
+              trim(coalesce(nullif(u.phone_number::text, ''), e.phone_number)) AS phone_number,
+              s.lu_updated AS deleted_at
+       FROM system_users s
+       LEFT JOIN user_profiles u ON u.user_id = s.user_id
+       LEFT JOIN employee e ON e.employee_id = s.user_id
+       WHERE lower(s.user_name) = lower($1) AND s.active_flag = 0
+       ORDER BY s.lu_updated DESC NULLS LAST
+       LIMIT 1`,
+      [userName],
+    );
+    return rows[0] ?? null;
+  }
+
+  async restoreUser(userId: string, hash: string, luUserId: string): Promise<void> {
+    await this.db.query(`CALL "RestoreUser"($1,$2,$3,NULL,NULL,NULL)`, [userId, hash, luUserId]);
   }
 
   // ===== Gán nhóm quyền =====

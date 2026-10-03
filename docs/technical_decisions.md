@@ -218,3 +218,15 @@ lại phải build lại. Render ở api-sso dùng chính khuôn `index.template
 copy HTML vào api-sso) nên hash bundle luôn khớp. Đánh đổi: trang HTML phụ thuộc api-sso — nginx có
 fallback về `index.html` tĩnh; IIS không có (api-sso chết thì cũng không đăng nhập được). Chỉ áp cho
 sso-web (task-web/build-web giữ thương hiệu riêng).
+
+## Xoá user: "nhả" nickname/email/SĐT bên chat/meeting trước khi xoá (04/10/2026)
+
+Chat/meeting (repo riêng) xoá MỀM user nhưng giữ `nickname` (= user_name), `email`, `phone_number` với
+ràng buộc UNIQUE. Tạo lại người dùng cùng tên đăng nhập/email/SĐT ở SSO ("Tạo tài khoản mới") bị chat từ
+chối (`SequelizeUniqueConstraintError: nickname must be unique`) và vì outbox xử lý tuần tự theo target nên
+kẹt cả hàng đợi chat. Không sửa được phía chat nên `SyncService.deliverUserOnly`, với sự kiện xoá user, gửi
+trước `POST users` (upsert theo id) bản ghi cũ với `user_name.del-<8 ký tự id>`, `del-<…>.email`, SĐT giả
+`00xxxxxxxx`, `active_flag: 0`, rồi mới `POST users/delete`. "Tạo tài khoản mới" đè tên tài khoản đã xoá
+cũng xếp lại sự kiện xoá tài khoản cũ TRƯỚC sự kiện tạo (để nhả cả tài khoản xoá trước bản sửa này). Khôi
+phục tài khoản gửi upsert thường nên định danh thật quay lại. Muốn bỏ cách này: chat/meeting đổi unique
+thành unique một phần `WHERE active_flag = 1`.

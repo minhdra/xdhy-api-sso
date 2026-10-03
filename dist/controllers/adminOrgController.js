@@ -40,7 +40,9 @@ let AdminOrgController = class AdminOrgController {
             const input = req.body;
             const userId = await this.org.createUser(input, actor);
             // default_password: có khi dùng mật khẩu mặc định - FE báo lại cho admin.
-            return ok('Đã thêm người dùng.', {
+            const restored = input.deleted_user_action === 'restore';
+            return ok(restored ? 'Đã khôi phục người dùng.' : 'Đã thêm người dùng.', {
+                restored,
                 user_id: userId,
                 default_password: input.password ? null : orgService_1.DEFAULT_NEW_PASSWORD,
             });
