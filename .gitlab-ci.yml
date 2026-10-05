@@ -27,12 +27,31 @@ deploy-server:
       $legacyTask = $env:LEGACY_TASK_NAME
 
       function Fail($msg) { Write-Host "ERROR: $msg"; exit 1 }
+      function Resolve-Pm2 {
+        if ($env:PM2_CMD -and (Test-Path $env:PM2_CMD)) { return $env:PM2_CMD }
+        $command = Get-Command pm2.cmd -ErrorAction SilentlyContinue
+        if ($command) { return $command.Source }
+        $candidates = @(Get-ChildItem 'C:\Users\*\AppData\Roaming\npm\pm2.cmd' -ErrorAction SilentlyContinue)
+        if ($candidates.Count -eq 0) { Fail 'Khong tim thay pm2.cmd. Cai PM2 global hoac khai bao PM2_CMD trong GitLab CI/CD Variables.' }
+        $selected = $candidates | Where-Object {
+          $profile = Split-Path (Split-Path (Split-Path (Split-Path $_.FullName -Parent) -Parent) -Parent) -Parent
+          $dump = Join-Path $profile '.pm2\dump.pm2'
+          (Test-Path $dump) -and (Select-String -Path $dump -SimpleMatch $pm2Name -Quiet)
+        } | Select-Object -First 1
+        if (-not $selected) { $selected = $candidates | Select-Object -First 1 }
+        if (-not $env:PM2_HOME) {
+          $profile = Split-Path (Split-Path (Split-Path (Split-Path $selected.FullName -Parent) -Parent) -Parent) -Parent
+          $env:PM2_HOME = Join-Path $profile '.pm2'
+        }
+        return $selected.FullName
+      }
 
       # --- 0. kiem tra dau vao
       if (-not (Test-Path "$src\dist\index.js")) { Fail 'Khong co dist\index.js trong repo. Chay npm run build roi commit ca thu muc dist.' }
       if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) { Fail 'Khong tim thay npm trong PATH cua runner (cai Node.js system-wide).' }
-      if (-not (Get-Command pm2.cmd -ErrorAction SilentlyContinue)) { Fail 'Khong tim thay pm2 trong PATH cua runner (cai PM2 global).' }
       if (-not (Test-Path "$dst\.env")) { Fail "Thieu $dst\.env - tao .env production tren server truoc." }
+      $pm2 = Resolve-Pm2
+      Write-Host "PM2: $pm2 (PM2_HOME=$env:PM2_HOME)"
 
       # Port lay tu .env dich (config.ts: PORT mac dinh 6005)
       $port = 6005
@@ -41,9 +60,9 @@ deploy-server:
       Write-Host "Deploy $src -> $dst (port $port)"
 
       # --- 1. dung process cu truoc khi chep/npm i (Windows khoa file .node cua bcrypt khi dang chay)
-      pm2.cmd describe $pm2Name *> $null
+      & $pm2 describe $pm2Name *> $null
       if ($LASTEXITCODE -eq 0) {
-        pm2.cmd delete $pm2Name
+        & $pm2 delete $pm2Name
         if ($LASTEXITCODE -ne 0) { Fail "Khong dung duoc PM2 process $pm2Name." }
       }
       $global:LASTEXITCODE = 0
@@ -78,9 +97,9 @@ deploy-server:
       # --- 4. chay lai qua PM2. cwd bat buoc la DEPLOY_DIR de dotenv/uploads dung dung duong dan.
       $env:NODE_ENV = 'production'
       $env:NODE_OPTIONS = '--max-http-header-size=10485760'
-      pm2.cmd start "$dst\dist\index.js" --name $pm2Name --cwd $dst --time
+      & $pm2 start "$dst\dist\index.js" --name $pm2Name --cwd $dst --time
       if ($LASTEXITCODE -ne 0) { Fail "pm2 start $pm2Name loi (exit $LASTEXITCODE)" }
-      pm2.cmd save
+      & $pm2 save
       if ($LASTEXITCODE -ne 0) { Fail "pm2 save loi (exit $LASTEXITCODE)" }
 
       # --- 5. cho port lang nghe toi da 60s
@@ -91,7 +110,7 @@ deploy-server:
       }
       if (-not $up) {
         Write-Host "--- PM2 logs: $pm2Name ---"
-        pm2.cmd logs $pm2Name --nostream --lines 50
+        & $pm2 logs $pm2Name --nostream --lines 50
         Fail "api-sso khong lang nghe port $port sau 60s."
       }
       Write-Host "OK: $pm2Name dang chay o port $port"
