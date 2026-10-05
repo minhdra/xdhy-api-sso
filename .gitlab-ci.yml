@@ -17,6 +17,8 @@ deploy-server:
   variables:
     DEPLOY_DIR: 'C:\inetpub\wwwroot\XayDung\api-sso'
     PM2_APP_NAME: 'xdhy-api-sso'
+    PM2_CMD: 'C:\Users\Administrator\AppData\Roaming\npm\pm2.cmd'
+    PM2_HOME: 'C:\Users\Administrator\.pm2'
     LEGACY_TASK_NAME: 'api-sso'
   script:
     - |
