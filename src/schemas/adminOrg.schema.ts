@@ -151,12 +151,31 @@ export const roleIdsSchema = z
 export type RoleIdsInput = z.infer<typeof roleIdsSchema>;
 
 // ===== Đồng bộ =====
+const SYNC_TARGET = z.enum(['finance', 'task', 'chat', 'meeting']);
+
+// Thử lại / bỏ qua: theo danh sách id (dòng trong nhật ký) hoặc theo đích
+// (null = mọi đích).
 export const syncTargetSchema = z
-  .object({ target: z.enum(['finance', 'task', 'chat', 'meeting']).nullable().optional() })
+  .object({
+    target: SYNC_TARGET.nullable().optional(),
+    ids: z.array(z.string().regex(/^\d+$/)).min(1).max(500).nullable().optional(),
+  })
   .openapi('AdminSyncTargetRequest');
 export type SyncTargetInput = z.infer<typeof syncTargetSchema>;
 
+export const syncHistorySchema = z
+  .object({
+    target: SYNC_TARGET.nullable().optional(),
+    status: z.enum(['pending', 'done', 'failed', 'skipped']).nullable().optional(),
+    entity: z.enum(['user', 'user_roles', 'branch', 'department', 'position', 'role']).nullable().optional(),
+    search: z.string().trim().max(100).nullable().optional(),
+    pageIndex: z.number().int().min(1).default(1),
+    pageSize: z.number().int().min(1).max(200).default(20),
+  })
+  .openapi('AdminSyncHistoryRequest');
+export type SyncHistoryInput = z.infer<typeof syncHistorySchema>;
+
 export const syncResyncSchema = z
-  .object({ target: z.enum(['finance', 'task', 'chat', 'meeting']) })
+  .object({ target: SYNC_TARGET })
   .openapi('AdminSyncResyncRequest');
 export type SyncResyncInput = z.infer<typeof syncResyncSchema>;

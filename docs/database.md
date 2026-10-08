@@ -20,9 +20,17 @@ api-sso đồng bộ sang qua `a_sync_outbox` (xem [`api.md`](./api.md) mục "�
   `--force`.
 - Khác biệt proc so với bản gốc: `DeleteRole` (0003) chỉ xoá mềm `roles`; `DeleteUser` (0005) **xoá mềm**
   + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, luôn lỗi FK với user đã từng đăng nhập).
-- `a_sync_outbox` (0004): hàng đợi đồng bộ (`target`, `entity`, `op`, `entity_id`, `status`
-  pending/done/failed, `attempts`, `next_retry_at`, `last_error`). Dòng `done` quá
-  `SYNC_OUTBOX_DONE_RETENTION_DAYS` (14) ngày tự xoá.
+- `a_sync_outbox` (0004, 0011): hàng đợi + nhật ký đồng bộ (`target`, `entity`, `op`, `entity_id`, `status`
+  pending/done/failed/skipped, `attempts`, `next_retry_at`, `last_error`, `note`). `skipped` (0011) = admin
+  bấm "Bỏ qua", hoặc dòng `failed` cũ tự chuyển khi 1 lần gửi sau cùng entity thành công. Dòng
+  `done`/`skipped` quá `SYNC_OUTBOX_DONE_RETENTION_DAYS` (365) ngày tự xoá. **Không xoá tay dòng kẹt
+  trong DB** — dùng "Bỏ qua"/"Thử lại" ở màn Đồng bộ (sso-web).
+- SĐT duy nhất (0012, 08/10/2026): index unique một phần `ux_user_profiles_phone_active` trên
+  `trim(user_profiles.phone_number)` với user **đang hoạt động**, số rỗng không tính. Migration **dừng**
+  (RAISE EXCEPTION, liệt kê số trùng + tài khoản) nếu dữ liệu cũ còn trùng — admin sửa SĐT ở sso-web rồi
+  chạy lại migrate, không tự đổi số của khách.
+- Email duy nhất (0013, 08/10/2026): `ux_user_profiles_email_active` trên `lower(trim(email))`, cùng cách
+  với SĐT (dừng + liệt kê nếu dữ liệu cũ trùng).
 
 Migration cũ ở [`db/migrations/`](../db/migrations) (0001–0015) là lịch sử trên `build_management` —
 đã có sẵn trong baseline, **không thêm file mới vào đó**. Quy tắc chung ở [`db/README.md`](../db/README.md).

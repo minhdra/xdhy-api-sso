@@ -109,7 +109,7 @@ thành công đều xếp đồng bộ sang app (xem mục "Đồng bộ"). `pag
 | POST | `/admin/org/users/search` | `{ pageIndex, pageSize, search_content?, branch_id?, department_id? }` | `{ totalItems, page, pageSize, pageCount, data }` (proc `SearchUser`, avatar đã thành URL) |
 | GET | `/admin/org/users/:user_id` | — | Chi tiết cho form sửa + `role_ids` |
 | POST | `/admin/org/users` | `{ user_name (a-z 0-9 . _ -, 3–50), password? (trống = 123456), full_name (chỉ chữ, 2–60), phone_number (10 số, đầu 0), full_name, email, phone_number?, gender?, date_of_birth?, branch_id, department_id, position_id, type?, description?, role_ids? }` | Tạo user (bcrypt, `user_id = employee_id = uuid`). 400 nếu trùng tên đăng nhập với user **đang hoạt động**. Trùng với user **đã xoá mềm** → 409 `data: { code: 'DELETED_USER_EXISTS', deleted_user: { user_id, user_name, full_name, email, phone_number, deleted_at } }`; gửi lại kèm `deleted_user_action: 'restore'` (khôi phục user cũ, giữ `user_id` — proc `RestoreUser`, cập nhật theo form, ghi lại nhóm quyền, KHÔNG cấp lại quyền app; response `restored: true`) hoặc `'new'` (tạo user mới, `user_id` mới). Chat/meeting upsert theo `id` và có unique email/SĐT nên cùng một người phải khôi phục, không tạo mới (04/10/2026) |
-| PUT | `/admin/org/users` | như trên + `user_id`, bỏ `user_name`/`password` | Sửa user; `role_ids` có mặt thì thay toàn bộ nhóm quyền. Không sửa avatar (user tự đổi) |
+| PUT | `/admin/org/users` | như trên + `user_id`, bỏ `user_name`/`password` | Sửa user. SĐT/email trùng user đang hoạt động khác (cả tạo mới/khôi phục/sửa, và `PUT /account/profile`) → **409** `data: { code: 'PHONE_TAKEN' | 'EMAIL_TAKEN', field: 'phone_number' | 'email' }`, message nêu tài khoản đang giữ (08/10/2026, migration 0012/0013). Trùng với user **đã xoá** thì cho phép, và xếp lệnh "xoá" user đã xoá đó sang chat/meeting TRƯỚC để nhả SĐT/email bên đó (`SyncService.releaseDeletedUsers`); `role_ids` có mặt thì thay toàn bộ nhóm quyền. Không sửa avatar (user tự đổi) |
 | POST | `/admin/org/users/delete` | `{ user_ids }` | **Xoá mềm** (proc `DeleteUser` bản 0005): `active_flag=0` 4 bảng, thu hồi mọi phiên, gỡ quyền app. Không tự xoá chính mình |
 | POST | `/admin/org/users/lock` | `{ user_id, online_flag }` | `online_flag=1` = khoá (`GetUserByAccount` chỉ cho đăng nhập khi `0`) — khoá thì thu hồi luôn mọi phiên. Không tự khoá mình |
 | POST | `/admin/org/users/reset-password` | `{ user_id }` | Mật khẩu ngẫu nhiên (crypto), gửi email nếu có; trả `{ new_password, emailed }` cho admin |
@@ -122,15 +122,27 @@ thành công đều xếp đồng bộ sang app (xem mục "Đồng bộ"). `pag
 | POST | `/admin/org/roles/search` | `{ pageIndex, pageSize, search_content? }` | Nhóm quyền |
 | POST | `/admin/org/roles` | `{ role_id?, role_code, role_name, description? }` | 400 nếu trùng mã; không đổi được mã của nhóm `sa` |
 | POST | `/admin/org/roles/delete` | `{ role_ids }` | Xoá mềm; không xoá được nhóm `sa` |
-| GET | `/admin/org/sync/status` | — | `{ enabled_targets, summary[{target,pending,failed,last_error}], failed[] }` |
-| POST | `/admin/org/sync/retry` | `{ target? }` | Đưa dòng `failed` về hàng đợi |
+| GET | `/admin/org/sync/status` | — | `{ enabled_targets, summary[{target, pending, retrying, failed, head_error, head_attempts, head_next_retry_at, oldest_pending, last_done_at}] }` — `head_*` = dòng đầu hàng đang chờ thử lại (đang chặn đích đó) |
+| POST | `/admin/org/sync/history` | `{ target?, status?, entity?, search?, pageIndex, pageSize ≤200 }` | Nhật ký: mọi dòng outbox mới nhất trước, kèm `entity_label` (tên user/chi nhánh…), `created_by_name`, `note`. `search` khớp mã hoặc tên. `{ totalItems, page, pageSize, data }` |
+| POST | `/admin/org/sync/retry` | `{ target? }` hoặc `{ ids }` | Thử lại ngay: theo đích = mọi dòng `failed` + dòng `pending` đang backoff; theo `ids` = cả dòng `skipped`. Reset `attempts`, gửi ngay |
+| POST | `/admin/org/sync/skip` | `{ target? }` hoặc `{ ids }` | Bỏ qua dòng `pending`/`failed` (→ `skipped`, `note` ghi người bỏ qua) để hàng đợi đi tiếp |
 | POST | `/admin/org/sync/resync` | `{ target }` | Xếp lại TOÀN BỘ dữ liệu hiện có sang 1 đích (đối soát / đích mới bật) |
 
 ## Đồng bộ sang app (gọi ra, không phải endpoint của api-sso)
 
 Worker (`jobs/syncOutboxJob.ts`) đọc `a_sync_outbox` theo thứ tự id **từng đích**, đọc **snapshot hiện
 tại** của entity rồi `POST {đích}/internal/sync/<path>` (header `X-Internal-Secret`). Entity không còn /
-đã xoá mềm → gửi lệnh xoá. Lỗi → thử lại backoff 5s…30 phút, quá `SYNC_OUTBOX_MAX_ATTEMPTS` → `failed`.
+đã xoá mềm → gửi lệnh xoá. Xử lý lỗi (08/10/2026 — trước đó 500 bị coi là lỗi tạm, thử lại backoff tới 30
+phút × 12 lần và **chặn cả hàng đợi** của đích, nút "Thử lại" lại chỉ áp cho dòng `failed`):
+
+- Đích từ chối dữ liệu (4xx trừ 408/429) → `failed` ngay, gửi tiếp dòng sau.
+- Đích lỗi khi xử lý (5xx trừ 502/503/504, vd chat/meeting trả 500 khi trùng SĐT unique) → thử
+  `SYNC_OUTBOX_SERVER_ERROR_ATTEMPTS` (3) lần rồi `failed`, gửi tiếp dòng sau.
+- Mất kết nối/timeout/502/503/504/408/429 (đích tạm sập) → giữ thứ tự, backoff 5s… tối đa
+  `SYNC_OUTBOX_MAX_BACKOFF_SECONDS` (300), quá `SYNC_OUTBOX_MAX_ATTEMPTS` (12) → `failed`.
+- `notify()` cho entity đang có dòng chờ thử lại → dòng đó gửi lại ngay (admin sửa dữ liệu xong là đi luôn).
+- Gửi thành công → các dòng `failed` cũ hơn cùng đích + entity tự chuyển `skipped` (ghi chú "đã đồng bộ ở
+  lần gửi sau").
 
 | Đích | Base URL / secret | Nhận |
 | --- | --- | --- |

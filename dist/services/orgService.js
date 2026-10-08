@@ -13,6 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.OrgService = exports.DEFAULT_NEW_PASSWORD = void 0;
+exports.toAppError = toAppError;
 const crypto_1 = __importDefault(require("crypto"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const tsyringe_1 = require("tsyringe");
@@ -35,6 +36,19 @@ const ADMIN_ROLE_CODE = 'sa';
 function toAppError(error) {
     if (error instanceof AppError_1.AppError)
         return error;
+    // 2 request đồng thời cùng SĐT lọt qua bước kiểm tra -> index unique chặn.
+    if (error instanceof Error && error.message.includes('ux_user_profiles_phone_active')) {
+        return new AppError_1.AppError(409, 'Số điện thoại này đã được dùng cho tài khoản khác. Vui lòng dùng số khác.', {
+            code: 'PHONE_TAKEN',
+            field: 'phone_number',
+        });
+    }
+    if (error instanceof Error && error.message.includes('ux_user_profiles_email_active')) {
+        return new AppError_1.AppError(409, 'Email này đã được dùng cho tài khoản khác. Vui lòng dùng email khác.', {
+            code: 'EMAIL_TAKEN',
+            field: 'email',
+        });
+    }
     if (error instanceof Error)
         return new AppError_1.AppError(400, error.message);
     return new AppError_1.AppError(500, 'Lỗi không xác định.');
@@ -95,7 +109,17 @@ let OrgService = class OrgService {
                 deleted_user: deleted,
             });
         }
-        if (deleted && input.deleted_user_action === 'restore') {
+        // Khôi phục giữ user_id cũ -> loại chính nó khi kiểm tra trùng SĐT.
+        const restoring = deleted && input.deleted_user_action === 'restore';
+        await this.assertContactAvailable(input, restoring ? deleted.user_id : null).catch((error) => {
+            // Khôi phục bị chặn vì SĐT/email đã thuộc người khác -> nói rõ là không
+            // khôi phục được (admin đổi SĐT/email trong form rồi khôi phục lại).
+            if (restoring && error instanceof AppError_1.AppError) {
+                throw new AppError_1.AppError(error.statusCode, `Không thể khôi phục tài khoản "${deleted.user_name}": ${error.message}`, error.data);
+            }
+            throw error;
+        });
+        if (restoring) {
             return this.restoreDeletedUser(deleted.user_id, input, actorId);
         }
         const userId = (0, uuid_1.v4)();
@@ -131,12 +155,14 @@ let OrgService = class OrgService {
         // tài khoản xoá trước bản sửa 04/10/2026 vẫn còn giữ các giá trị đó.
         if (deleted)
             events.unshift({ entity: 'user', op: 'delete', entity_id: deleted.user_id });
+        await this.releaseDeletedContacts(input, actorId);
         await this.sync.notify(events, actorId);
         return userId;
     }
     async restoreDeletedUser(userId, input, actorId) {
         try {
-            await this.repo.restoreUser(userId, await (0, password_1.hashPassword)(input.password || exports.DEFAULT_NEW_PASSWORD), actorId);
+            // Ghi hồ sơ (SĐT mới) TRƯỚC khi bật lại: SĐT cũ của tài khoản đã xoá có
+            // thể đã thuộc người khác -> bật lại trước sẽ vướng index SĐT duy nhất.
             await this.repo.updateUser({
                 user_id: userId,
                 branch_id: input.branch_id,
@@ -153,12 +179,14 @@ let OrgService = class OrgService {
                 phone_number: input.phone_number,
                 lu_user_id: actorId,
             });
+            await this.repo.restoreUser(userId, await (0, password_1.hashPassword)(input.password || exports.DEFAULT_NEW_PASSWORD), actorId);
             // Nhóm quyền cũ đã bị tắt lúc xoá - ghi lại đúng theo form (rỗng = không nhóm).
             await this.writeUserRoles(userId, input.role_ids ?? [], actorId);
         }
         catch (error) {
             throw toAppError(error);
         }
+        await this.releaseDeletedContacts(input, actorId);
         await this.sync.notify([
             { entity: 'user', op: 'upsert', entity_id: userId },
             { entity: 'user_roles', op: 'upsert', entity_id: userId },
@@ -171,6 +199,7 @@ let OrgService = class OrgService {
             throw new AppError_1.AppError(404, 'Không tìm thấy người dùng.');
         if (input.role_ids)
             await this.assertNotRemovingOwnAdmin(input.user_id, input.role_ids, actorId);
+        await this.assertContactAvailable(input, input.user_id);
         try {
             await this.repo.updateUser({
                 user_id: input.user_id,
@@ -198,7 +227,32 @@ let OrgService = class OrgService {
         const events = [{ entity: 'user', op: 'upsert', entity_id: input.user_id }];
         if (input.role_ids)
             events.push({ entity: 'user_roles', op: 'upsert', entity_id: input.user_id });
+        await this.releaseDeletedContacts(input, actorId);
         await this.sync.notify(events, actorId);
+    }
+    // SĐT + email duy nhất trong số người dùng đang hoạt động (migration
+    // 0012/0013) - chat/meeting cũng ràng buộc unique 2 trường này. Báo rõ tài
+    // khoản đang giữ để admin biết sửa ai.
+    async assertContactAvailable(c, excludeUserId) {
+        const checks = [
+            { kind: 'phone', value: c.phone_number?.trim(), label: 'Số điện thoại', code: 'PHONE_TAKEN', field: 'phone_number', other: 'số khác' },
+            { kind: 'email', value: c.email?.trim(), label: 'Email', code: 'EMAIL_TAKEN', field: 'email', other: 'email khác' },
+        ];
+        for (const k of checks) {
+            if (!k.value)
+                continue;
+            const owner = await this.repo.findContactOwner(k.kind, k.value, excludeUserId);
+            if (!owner)
+                continue;
+            throw new AppError_1.AppError(409, `${k.label} ${k.value} đã được dùng cho tài khoản "${owner.full_name || owner.user_name}" (${owner.user_name}). Vui lòng dùng ${k.other}.`, { code: k.code, field: k.field });
+        }
+    }
+    // Trước khi gửi user mang SĐT/email sang chat/meeting: tài khoản ĐÃ XOÁ còn
+    // giữ cùng giá trị ở phía đó (xoá trước bản sửa 04/10/2026) -> xếp lệnh
+    // "xoá" lại cho chúng đi TRƯỚC để nhả giá trị (SyncService.deliverUserOnly).
+    async releaseDeletedContacts(c, actorId) {
+        const ids = await this.repo.findDeletedSharingContact(c.phone_number ?? null, c.email ?? null);
+        await this.sync.releaseDeletedUsers(ids, actorId);
     }
     async deleteUsers(userIds, actorId) {
         if (userIds.includes(actorId))
@@ -294,8 +348,7 @@ let OrgService = class OrgService {
         }
     }
     async rawAvatar(userId) {
-        const detail = await this.repo.getUserDetail(userId);
-        return detail?.avatar ?? null;
+        return this.repo.getRawAvatar(userId);
     }
     // ===== Chi nhánh / phòng ban / chức vụ =====
     async searchBranches(p) {

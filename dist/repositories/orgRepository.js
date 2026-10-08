@@ -117,6 +117,37 @@ let OrgRepository = class OrgRepository {
         return rows.length > 0;
     }
     // Tài khoản đã xoá mềm gần nhất cùng tên đăng nhập (để hỏi admin khôi phục).
+    // Path avatar thô trong DB, kể cả user đã xoá mềm (khôi phục ghi hồ sơ
+    // trước khi bật lại tài khoản - getUserDetail chỉ đọc user đang hoạt động).
+    async getRawAvatar(userId) {
+        const rows = await this.db.raw(`SELECT avatar FROM user_profiles WHERE user_id = $1`, [userId]);
+        return rows[0]?.avatar ?? null;
+    }
+    // Người dùng ĐANG HOẠT ĐỘNG khác đang giữ SĐT/email này (duy nhất - index
+    // ux_user_profiles_phone_active / ux_user_profiles_email_active, migration
+    // 0012/0013). Giá trị rỗng không tính; email không phân biệt hoa thường.
+    async findContactOwner(kind, value, excludeUserId) {
+        if (!value.trim())
+            return null;
+        const match = kind === 'phone' ? 'trim(u.phone_number) = trim($1)' : 'lower(trim(u.email)) = lower(trim($1))';
+        const rows = await this.db.raw(`SELECT s.user_id, s.user_name, u.full_name
+       FROM user_profiles u
+       JOIN system_users s ON s.user_id = u.user_id AND s.active_flag = 1
+       WHERE u.active_flag = 1 AND ${match}
+         AND ($2::varchar IS NULL OR u.user_id <> $2)
+       LIMIT 1`, [value, excludeUserId]);
+        return rows[0] ?? null;
+    }
+    // User ĐÃ XOÁ MỀM còn mang SĐT/email này - chat/meeting có thể vẫn giữ
+    // (tài khoản xoá trước bản sửa 04/10/2026) -> phải gửi lại "xoá" để nhả.
+    async findDeletedSharingContact(phone, email) {
+        const rows = await this.db.raw(`SELECT u.user_id
+       FROM user_profiles u
+       WHERE u.active_flag = 0
+         AND ((coalesce(trim($1), '') <> '' AND trim(u.phone_number) = trim($1))
+              OR (coalesce(trim($2), '') <> '' AND lower(trim(u.email)) = lower(trim($2))))`, [phone, email]);
+        return rows.map((r) => r.user_id);
+    }
     async findDeletedByUserName(userName) {
         const rows = await this.db.raw(`SELECT s.user_id, s.user_name, coalesce(u.full_name, e.fullname) AS full_name,
               coalesce(u.email, e.email) AS email,

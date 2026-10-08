@@ -17,6 +17,7 @@ import {
   searchRoleSchema,
   searchUserSchema,
   setUserRolesSchema,
+  syncHistorySchema,
   syncResyncSchema,
   syncTargetSchema,
   updateUserSchema,
@@ -106,7 +107,9 @@ route('post', '/roles/delete', ROLES, 'Xoá (mềm) nhóm quyền (không xoá �
 
 const SYNC = 'Admin - Đồng bộ';
 route('get', '/sync/status', SYNC, 'Trạng thái hàng đợi đồng bộ theo đích', c.syncStatus);
-route('post', '/sync/retry', SYNC, 'Đưa các dòng lỗi (failed) về hàng đợi', c.syncRetry, { body: syncTargetSchema });
+route('post', '/sync/history', SYNC, 'Nhật ký đồng bộ (mọi thay đổi, phân trang, lọc)', c.syncHistory, { body: syncHistorySchema });
+route('post', '/sync/retry', SYNC, 'Thử lại ngay: dòng lỗi + dòng đang chờ backoff (theo đích hoặc theo id)', c.syncRetry, { body: syncTargetSchema });
+route('post', '/sync/skip', SYNC, 'Bỏ qua dòng đang chờ/lỗi để hàng đợi đi tiếp (theo đích hoặc theo id)', c.syncSkip, { body: syncTargetSchema });
 route('post', '/sync/resync', SYNC, 'Đồng bộ lại toàn bộ dữ liệu sang 1 đích', c.syncResync, { body: syncResyncSchema });
 
 export default adminOrgRouter;

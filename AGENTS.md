@@ -49,6 +49,14 @@ phần "Trước khi đoán" và "Vận hành", 2 mục dễ gây sai lầm tố
   User mới/sửa ở SSO tới được app khác **chỉ qua đồng bộ** (`a_sync_outbox` + `jobs/syncOutboxJob.ts`) —
   app không thấy user mới thì xem màn "Đồng bộ" (sso-web) / `GET /admin/org/sync/status` trước khi đoán
   bug ở app.
+- **Hàng đợi đồng bộ kẹt/lỗi: xử lý trên màn "Đồng bộ" (Thử lại ngay / Bỏ qua / nhật ký), không xoá tay
+  dòng `a_sync_outbox` trong DB.** Lỗi 5xx của đích chỉ thử vài lần rồi `failed` để không chặn hàng đợi
+  (sự cố thật 10/2026: trùng SĐT làm chat/họp trả 500 → kẹt mãi) — xem [`docs/api.md`](./docs/api.md) mục
+  "Đồng bộ sang app".
+- **SĐT + email duy nhất trong user đang hoạt động** (migration 0012/0013): mọi đường ghi (tạo/khôi
+  phục/sửa user, tự sửa hồ sơ) gọi `OrgService.assertContactAvailable()` trước (409 `PHONE_TAKEN`/
+  `EMAIL_TAKEN` thân thiện), index là chốt cuối; sau khi ghi gọi `releaseDeletedContacts()` để chat/meeting
+  nhả SĐT/email của user đã xoá trùng giá trị. Khôi phục user: ghi hồ sơ TRƯỚC rồi mới bật lại (SĐT cũ có thể đã thuộc người khác).
 - **Thay đổi user/tổ chức/nhóm quyền PHẢI gọi `SyncService.notify()` sau khi proc ghi thành công** —
   quên là app khác lệch dữ liệu âm thầm. Worker đọc snapshot hiện tại lúc gửi (không gửi payload lúc
   enqueue), nên chỉ cần báo "entity nào đổi".

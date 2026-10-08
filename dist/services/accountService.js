@@ -17,13 +17,15 @@ const sessionRepository_1 = require("../repositories/sessionRepository");
 const userRepository_1 = require("../repositories/userRepository");
 const password_1 = require("../utilities/password");
 const avatarService_1 = require("./avatarService");
+const orgService_1 = require("./orgService");
 const syncService_1 = require("./syncService");
 let AccountService = class AccountService {
-    constructor(userRepository, sessionRepository, syncService, avatarService) {
+    constructor(userRepository, sessionRepository, syncService, avatarService, orgService) {
         this.userRepository = userRepository;
         this.sessionRepository = sessionRepository;
         this.syncService = syncService;
         this.avatarService = avatarService;
+        this.orgService = orgService;
     }
     // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
     // để hiển thị, dù user không sửa được các field đó).
@@ -38,7 +40,9 @@ let AccountService = class AccountService {
     // chạm branch/department/position/type. Avatar có endpoint upload riêng.
     // Ghi sso_management xong -> outbox đồng bộ user sang các app (SyncService).
     async updateProfile(userId, patch) {
-        await this.userRepository.updateSelfProfile({
+        await this.orgService.assertContactAvailable(patch, userId);
+        await this.userRepository
+            .updateSelfProfile({
             user_id: userId,
             full_name: patch.full_name,
             email: patch.email,
@@ -46,7 +50,11 @@ let AccountService = class AccountService {
             gender: patch.gender,
             date_of_birth: patch.date_of_birth,
             lu_user_id: userId,
+        })
+            .catch((error) => {
+            throw (0, orgService_1.toAppError)(error);
         });
+        await this.orgService.releaseDeletedContacts(patch, userId);
         await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
     }
     // Lưu file ở api-sso + ghi DB + đồng bộ (AvatarService). Trả URL public để
@@ -84,5 +92,6 @@ exports.AccountService = AccountService = __decorate([
     __metadata("design:paramtypes", [userRepository_1.UserRepository,
         sessionRepository_1.SessionRepository,
         syncService_1.SyncService,
-        avatarService_1.AvatarService])
+        avatarService_1.AvatarService,
+        orgService_1.OrgService])
 ], AccountService);

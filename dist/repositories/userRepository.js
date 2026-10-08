@@ -31,7 +31,9 @@ let UserRepository = class UserRepository {
        FROM system_users s
        JOIN user_profiles u ON u.user_id = s.user_id
        WHERE s.active_flag = 1 AND u.active_flag = 1
-         AND (s.user_name = $1 OR u.email = $1 OR u.phone_number = $1)
+         -- Email/SĐT duy nhất trong user đang hoạt động (migration 0012/0013,
+         -- email không phân biệt hoa thường) -> so cùng cách cho khớp.
+         AND (s.user_name = $1 OR lower(trim(u.email)) = lower(trim($1)) OR trim(u.phone_number) = trim($1))
        LIMIT 1`, [identifier]);
         return rows[0]?.user_name ?? null;
     }
@@ -43,7 +45,7 @@ let UserRepository = class UserRepository {
         const rows = await this.db.raw(`SELECT s.user_id, s.user_name
        FROM system_users s
        JOIN user_profiles u ON u.user_id = s.user_id
-       WHERE s.active_flag = 1 AND u.active_flag = 1 AND u.email = $1
+       WHERE s.active_flag = 1 AND u.active_flag = 1 AND lower(trim(u.email)) = lower(trim($1))
        LIMIT 1`, [email]);
         return rows[0] ?? null;
     }

@@ -7,6 +7,7 @@ import { UserRepository } from '../repositories/userRepository';
 import { hashPassword, verifyPassword } from '../utilities/password';
 
 import { AvatarService } from './avatarService';
+import { OrgService, toAppError } from './orgService';
 import { SyncService } from './syncService';
 
 export interface UpdateProfilePatch {
@@ -24,6 +25,7 @@ export class AccountService {
     private sessionRepository: SessionRepository,
     private syncService: SyncService,
     private avatarService: AvatarService,
+    private orgService: OrgService,
   ) {}
 
   // Hồ sơ đầy đủ cho trang Quản lý tài khoản (gồm phòng ban/chức vụ/chi nhánh
@@ -39,7 +41,9 @@ export class AccountService {
   // chạm branch/department/position/type. Avatar có endpoint upload riêng.
   // Ghi sso_management xong -> outbox đồng bộ user sang các app (SyncService).
   async updateProfile(userId: string, patch: UpdateProfilePatch): Promise<void> {
-    await this.userRepository.updateSelfProfile({
+    await this.orgService.assertContactAvailable(patch, userId);
+    await this.userRepository
+      .updateSelfProfile({
       user_id: userId,
       full_name: patch.full_name,
       email: patch.email,
@@ -47,7 +51,11 @@ export class AccountService {
       gender: patch.gender,
       date_of_birth: patch.date_of_birth,
       lu_user_id: userId,
-    });
+    })
+      .catch((error: unknown) => {
+        throw toAppError(error);
+      });
+    await this.orgService.releaseDeletedContacts(patch, userId);
     await this.syncService.notify([{ entity: 'user', op: 'upsert', entity_id: userId }], userId);
   }
 
