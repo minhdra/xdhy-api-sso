@@ -18,7 +18,9 @@ cd build-web && pnpm dev:standalone
 ```
 
 `build-web` chạy tại `http://localhost:3010`, proxy auth trực tiếp tới
-`api-sso:6005` và API nghiệp vụ/quyền tới `api-financial-management:6003`.
+`api-sso:6005` và API nghiệp vụ tới `api-financial-management:6003`. Cây menu
+và action chỉ dùng để dựng UI trong mode này nằm local ở `build-web`; quyền
+truy cập app `finance` vẫn được `/api-sso/me?app=finance` kiểm tra thật.
 Trang `/login` có sẵn trong build-web được dùng cho local nên không cần bật
 `sso-web`. `api-financial-management` cần `JWT_JWKS_URI` trỏ port 6005 và có
 thể để trống `TASK_SYNC_SECRET`; `api-sso` để trống các secret đồng bộ không

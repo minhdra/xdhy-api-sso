@@ -42,7 +42,7 @@ xem `sso-web/docs/architecture.md`). Không tự publish port ra internet trong 
   fire-and-forget (mất sự kiện khi đích down).
 - **Nhóm quyền chung, tính năng riêng**: SSO giữ danh sách nhóm quyền + gán người vào nhóm; mỗi app tự
   map nhóm → tính năng/thao tác trong DB của app. `/me` chỉ trả danh tính; FE gọi thêm
-  `/api-financial/me/permissions` (tài chính) hoặc `/api-task/me/permissions` (công việc).
+  `/api-core/me/permissions` (tài chính) hoặc `/api-task/me/permissions` (công việc).
 - **Chế độ độc lập**: api-core/api-task có sẵn API quản trị user/tổ chức khoá bằng `STANDALONE_ORG_ADMIN`
   (mặc định `false`). Bật cờ ở app nào thì tắt đích tương ứng ở api-sso (`SYNC_DISABLED_TARGETS`).
 - api-core chỉ còn giữ file avatar (`/internal/users/:id/avatar`) + nhận đồng bộ.
