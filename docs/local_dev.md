@@ -1,10 +1,28 @@
-# Chạy cả cụm hệ thống ở local
+# Chạy hệ thống ở local
 
 Tài liệu này nằm trong `api-sso` vì lý do đơn giản: từ khi có cơ chế phân quyền ứng dụng (`?app=`, xem
 [`technical_decisions.md`](./technical_decisions.md) mục "Enforce quyền app ở /me"), **mọi frontend đều
 phải có `api-sso` chạy được** thì mới qua khỏi màn hình loading — không còn cách nào "chạy tắt" 1 app
 riêng lẻ không cần SSO nữa. Nội dung dưới đây nói về cách chạy **toàn bộ cụm** (không chỉ riêng
 `api-sso`) — xem [`README.md`](../README.md) ở gốc `api-sso` nếu chỉ cần chạy đúng service này.
+
+## Chế độ tài chính độc lập (khuyến nghị khi chỉ sửa tài chính)
+
+Chỉ cần chạy ba process, không cần `api-gateway`, `api-core`,
+`api-task-management` hay `sso-web`:
+
+```bash
+cd api-sso && pnpm start
+cd api-financial-management && pnpm start
+cd build-web && pnpm dev:standalone
+```
+
+`build-web` chạy tại `http://localhost:3010`, proxy auth trực tiếp tới
+`api-sso:6005` và API nghiệp vụ/quyền tới `api-financial-management:6003`.
+Trang `/login` có sẵn trong build-web được dùng cho local nên không cần bật
+`sso-web`. `api-financial-management` cần `JWT_JWKS_URI` trỏ port 6005 và có
+thể để trống `TASK_SYNC_SECRET`; `api-sso` để trống các secret đồng bộ không
+cần dùng hoặc đặt `SYNC_DISABLED_TARGETS=finance,task,chat,meeting`.
 
 ## 1. Danh sách service + port mặc định (local)
 
@@ -32,8 +50,9 @@ là hành vi cố ý (không cho vào giao diện khi chưa xác định đượ
 ## 3. Thứ tự khởi động
 
 1. **Xác định service nào đang sửa**, rồi chỉ cần chạy đúng nhóm dưới đây (không phải chạy hết):
-   - Sửa `build-web`/`task-web`: cần `api-gateway` + `api-sso` + `api-core` (+ `api-task-management`
-     nếu đụng module Nhiệm vụ).
+   - Sửa riêng tài chính trong `build-web`: dùng chế độ ba service ở trên.
+   - Sửa `build-web` theo luồng đầy đủ hoặc `task-web`: cần `api-gateway` + `api-sso` + `api-core`
+     (+ `api-task-management` nếu đụng module Nhiệm vụ).
    - Sửa `sso-web`: cần `api-gateway` + `api-sso` + `api-core`.
    - Sửa backend thuần (`api-core`/`api-sso`/`api-task-management`): không bắt buộc chạy frontend, test
      bằng `curl` qua gateway là đủ (xem [`api.md`](./api.md)).

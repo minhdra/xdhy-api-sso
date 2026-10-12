@@ -27,7 +27,7 @@ gọi qua tiền tố này (`sso-web/src/api.ts`), không gọi thẳng `api-sso
 | POST | `/login` | `{ username, password, remember? }` | `username` nhận tài khoản/email/số điện thoại. Set cookie `access_token`+`refresh_token`. Trả `{user_id, full_name, user_name, role_group}` |
 | POST | `/refresh` | — (đọc cookie `refresh_token`) | Cấp `access_token` mới nếu phiên chưa bị thu hồi/hết hạn |
 | POST | `/logout` | — | Thu hồi phiên (`a_session`) + xoá cả 2 cookie |
-| GET | `/me?app=<app_key>` | — | Thông tin user hiện tại (danh tính, chức vụ) + `is_admin`. **Không còn `functions`/`actions`** (26/09/2026) — tính năng thuộc từng app: tài chính `GET /api-core/me/permissions`, công việc `GET /api-task/me/permissions`. Có `app` (app_key trong `a_app`) → **tự chặn 403** nếu user không có quyền app đó (admin luôn qua) — xem mục dưới |
+| GET | `/me?app=<app_key>` | — | Thông tin user hiện tại (danh tính, chức vụ) + `is_admin`. **Không còn `functions`/`actions`** (26/09/2026) — tính năng thuộc từng app: tài chính `GET /api-financial/me/permissions`, công việc `GET /api-task/me/permissions`. Có `app` (app_key trong `a_app`) → **tự chặn 403** nếu user không có quyền app đó (admin luôn qua) — xem mục dưới |
 | POST | `/forgot-password` | `{ email }` | Luôn trả cùng 1 message dù email tồn tại hay không. Gửi email chứa link `?token=` |
 | POST | `/reset-password-confirm` | `{ token, newPassword }` | Token 1 lần, hạn 1 giờ |
 
