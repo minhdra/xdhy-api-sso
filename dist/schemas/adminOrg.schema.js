@@ -90,6 +90,14 @@ exports.upsertPositionSchema = zod_1.z
     position_id: zod_1.z.number().int().nullable().optional(),
     position_name: zod_1.z.string().trim().min(1, 'Tên chức vụ là bắt buộc').max(250),
     description: (0, common_schema_1.optionalString)(),
+    // Trọng số cấp bậc (số lớn = cấp cao). null = chưa xếp cấp; không gửi = giữ nguyên khi sửa.
+    rank_weight: zod_1.z
+        .number()
+        .int('Trọng số phải là số nguyên')
+        .min(1, 'Trọng số từ 1 đến 1000')
+        .max(1000, 'Trọng số từ 1 đến 1000')
+        .nullable()
+        .optional(),
 })
     .openapi('AdminUpsertPositionRequest');
 exports.intIdsSchema = zod_1.z

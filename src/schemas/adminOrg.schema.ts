@@ -119,6 +119,14 @@ export const upsertPositionSchema = z
     position_id: z.number().int().nullable().optional(),
     position_name: z.string().trim().min(1, 'Tên chức vụ là bắt buộc').max(250),
     description: optionalString(),
+    // Trọng số cấp bậc (số lớn = cấp cao). null = chưa xếp cấp; không gửi = giữ nguyên khi sửa.
+    rank_weight: z
+      .number()
+      .int('Trọng số phải là số nguyên')
+      .min(1, 'Trọng số từ 1 đến 1000')
+      .max(1000, 'Trọng số từ 1 đến 1000')
+      .nullable()
+      .optional(),
   })
   .openapi('AdminUpsertPositionRequest');
 export type UpsertPositionInput = z.infer<typeof upsertPositionSchema>;

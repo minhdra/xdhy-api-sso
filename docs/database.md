@@ -8,8 +8,7 @@
 api-sso đồng bộ sang qua `a_sync_outbox` (xem [`api.md`](./api.md) mục "Đồng bộ sang app"). DB cũ
 `build_management` **không bị xoá** — tài chính vẫn dùng.
 
-- Không mang sang: `country` (không dùng ở đâu), cột `positions.rank_weight` (thuộc app Công việc),
-  bảng tính năng `functions/actions/role_functions/role_permissions` (mỗi app tự giữ).
+- Không mang sang: `country` (không dùng ở đâu), bảng tính năng `functions/actions/role_functions/role_permissions` (mỗi app tự giữ).
 - Migration: [`db/sso_management/`](../db/sso_management) — `0001`/`0002` là baseline sinh tự động từ
   `build_management` (`scripts/sso-management/generate-baseline.js`, nguyên văn định nghĩa bảng/proc đang
   chạy thật), từ `0003` là thay đổi mới. Chạy: `node scripts/sso-management/migrate.js [--create-db]`

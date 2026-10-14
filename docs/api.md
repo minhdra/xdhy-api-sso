@@ -117,7 +117,7 @@ thành công đều xếp đồng bộ sang app (xem mục "Đồng bộ"). `pag
 | PUT | `/admin/org/users/:user_id/roles` | `{ role_ids }` | Gán lại toàn bộ nhóm quyền (rỗng = gỡ hết). Admin không tự gỡ nhóm `sa` của mình |
 | POST | `/admin/org/{branches,departments,positions}/search` | `{ pageIndex, pageSize, search_content? }` | Danh sách phân trang |
 | GET | `/admin/org/{branches,departments,positions,roles}/dropdown` | — | `[{ label, value }]` |
-| POST | `/admin/org/{branches,departments,positions}` | `{ <x>_id?, <x>_name, phone?, fax?, address? }` / chức vụ `{ position_id?, position_name, description? }` | Id rỗng = thêm (identity) |
+| POST | `/admin/org/{branches,departments,positions}` | `{ <x>_id?, <x>_name, phone?, fax?, address? }` / chức vụ `{ position_id?, position_name, description?, rank_weight? }` (rank_weight 1..1000 hoặc `null` = chưa xếp cấp; không gửi khi sửa = giữ nguyên) | Id rỗng = thêm (identity) |
 | POST | `/admin/org/{branches,departments,positions}/delete` | `{ ids: number[] }` | Xoá mềm |
 | POST | `/admin/org/roles/search` | `{ pageIndex, pageSize, search_content? }` | Nhóm quyền |
 | POST | `/admin/org/roles` | `{ role_id?, role_code, role_name, description? }` | 400 nếu trùng mã; không đổi được mã của nhóm `sa` |
@@ -153,7 +153,7 @@ phút × 12 lần và **chặn cả hàng đợi** của đích, nút "Thử l�
 Hợp đồng finance/task (giống nhau): `POST users` (upsert) + `POST users/lock`, `POST users/delete`
 `{json_list:[{user_id}], lu_user_id}`, `POST user-roles` `{user_role_list, created_by_user_id}` (thay toàn
 bộ theo user), `POST user-roles/clear` `{user_id, updated_by_id}`, `POST {branches,departments,positions,roles}`
-(upsert) và `…/delete` `{json_list:[{<id>}], updated_by_id}`.
+(upsert) và `…/delete` `{json_list:[{<id>}], updated_by_id}`. Payload chức vụ có thêm `rank_weight` (số hoặc `null`); finance/task ghi `positions.rank_weight` theo đó, bản cũ không gửi thì giữ nguyên.
 
 Tắt 1 đích: để trống secret hoặc `SYNC_DISABLED_TARGETS=finance,...` (dùng khi app đó chạy độc lập
 `STANDALONE_ORG_ADMIN=true`).

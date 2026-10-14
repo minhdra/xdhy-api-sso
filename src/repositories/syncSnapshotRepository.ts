@@ -95,7 +95,7 @@ export class SyncSnapshotRepository {
 
   async position(id: string): Promise<Record<string, unknown> | null> {
     const rows = await this.db.raw(
-      `SELECT position_id, position_name, description, created_by_user_id
+      `SELECT position_id, position_name, description, rank_weight, created_by_user_id
        FROM positions WHERE position_id = $1::int AND active_flag = 1`,
       [id],
     );

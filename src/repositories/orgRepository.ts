@@ -387,23 +387,39 @@ export class OrgRepository {
     return (await this.db.queryList(`CALL "GetPositionDropdown"(NULL,NULL,NULL)`)).rows;
   }
 
-  async createPosition(p: { position_name: string; description: string }, actor: string): Promise<number> {
-    const result = await this.db.query(`CALL "InsertPosition"($1,$2,$3,NULL,NULL,NULL)`, [
+  async createPosition(
+    p: { position_name: string; description: string; rank_weight?: number | null },
+    actor: string,
+  ): Promise<number> {
+    const result = await this.db.query(`CALL "InsertPosition"($1,$2,$3::int,$4,NULL,NULL,NULL)`, [
       p.position_name,
       p.description,
+      p.rank_weight ?? null,
       actor,
     ]);
     return Number(result?.position_id);
   }
 
+  // rank_weight undefined = không đổi trọng số (gọi proc 4 tham số cũ); null = xoá (chưa xếp cấp);
+  // số = đặt trọng số (proc 5 tham số, kiểm tra 1..1000).
   async updatePosition(
-    p: { position_id: number; position_name: string; description: string },
+    p: { position_id: number; position_name: string; description: string; rank_weight?: number | null },
     actor: string,
   ): Promise<void> {
-    await this.db.query(`CALL "UpdatePosition"($1,$2,$3,$4,NULL,NULL,NULL)`, [
+    if (p.rank_weight === undefined) {
+      await this.db.query(`CALL "UpdatePosition"($1,$2,$3,$4,NULL,NULL,NULL)`, [
+        p.position_id,
+        p.position_name,
+        p.description,
+        actor,
+      ]);
+      return;
+    }
+    await this.db.query(`CALL "UpdatePosition"($1,$2,$3,$4::int,$5,NULL,NULL,NULL)`, [
       p.position_id,
       p.position_name,
       p.description,
+      p.rank_weight,
       actor,
     ]);
   }

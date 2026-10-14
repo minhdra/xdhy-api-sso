@@ -62,7 +62,7 @@ let SyncSnapshotRepository = class SyncSnapshotRepository {
         return rows[0] ?? null;
     }
     async position(id) {
-        const rows = await this.db.raw(`SELECT position_id, position_name, description, created_by_user_id
+        const rows = await this.db.raw(`SELECT position_id, position_name, description, rank_weight, created_by_user_id
        FROM positions WHERE position_id = $1::int AND active_flag = 1`, [id]);
         return rows[0] ?? null;
     }
