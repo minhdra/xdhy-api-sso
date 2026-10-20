@@ -7,7 +7,11 @@ import { type BrandingRow, BrandingRepository } from '../repositories/brandingRe
 
 const START = '<!-- branding-meta:start';
 const END = '<!-- branding-meta:end -->';
-const TEMPLATE_TTL_MS = 5 * 60_000;
+// Khuôn index.html đổi mỗi lần deploy sso-web (hash bundle mới). TTL dài làm
+// người dùng bấm "Cập nhật ngay" vẫn nhận index.html cũ -> banner phiên bản
+// hiện lại (20/10/2026). Nên hỏi lại nguồn sau TTL ngắn bằng If-None-Match
+// (304 = giữ bản cũ, gần như không tốn băng thông).
+const TEMPLATE_TTL_MS = 5_000;
 
 const esc = (v: string) =>
   v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -19,7 +23,7 @@ const esc = (v: string) =>
 // index.html tĩnh.
 @injectable()
 export class PageRenderService {
-  private template: { at: number; html: string } | null = null;
+  private template: { at: number; html: string; etag: string | null } | null = null;
 
   constructor(private branding: BrandingRepository) {}
 
@@ -36,13 +40,19 @@ export class PageRenderService {
   private async loadTemplate(): Promise<string> {
     if (this.template && Date.now() - this.template.at < TEMPLATE_TTL_MS) return this.template.html;
     if (!config.ssoWeb.templateUrl) throw new AppError(503, 'Chưa cấu hình SSO_WEB_TEMPLATE_URL.');
-    const res = await fetch(config.ssoWeb.templateUrl, { signal: AbortSignal.timeout(3000) }).catch(() => null);
+    const headers: Record<string, string> = { 'Cache-Control': 'no-cache' };
+    if (this.template?.etag) headers['If-None-Match'] = this.template.etag;
+    const res = await fetch(config.ssoWeb.templateUrl, { headers, signal: AbortSignal.timeout(3000) }).catch(() => null);
+    if (this.template && res?.status === 304) {
+      this.template.at = Date.now();
+      return this.template.html;
+    }
     if (!res?.ok) {
       // Giữ bản cũ nếu có - sso-web đang deploy lại cũng không làm trang lỗi.
       if (this.template) return this.template.html;
       throw new AppError(502, 'Không tải được khuôn trang sso-web.');
     }
-    this.template = { at: Date.now(), html: await res.text() };
+    this.template = { at: Date.now(), html: await res.text(), etag: res.headers.get('etag') };
     return this.template.html;
   }
 

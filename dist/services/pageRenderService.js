@@ -17,7 +17,11 @@ const AppError_1 = require("../errors/AppError");
 const brandingRepository_1 = require("../repositories/brandingRepository");
 const START = '<!-- branding-meta:start';
 const END = '<!-- branding-meta:end -->';
-const TEMPLATE_TTL_MS = 5 * 60000;
+// Khuôn index.html đổi mỗi lần deploy sso-web (hash bundle mới). TTL dài làm
+// người dùng bấm "Cập nhật ngay" vẫn nhận index.html cũ -> banner phiên bản
+// hiện lại (20/10/2026). Nên hỏi lại nguồn sau TTL ngắn bằng If-None-Match
+// (304 = giữ bản cũ, gần như không tốn băng thông).
+const TEMPLATE_TTL_MS = 5000;
 const esc = (v) => v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 // Trả index.html của sso-web với khối thẻ meta/Open Graph lấy từ DB (tab Thương
 // hiệu) - để bot xem trước link (Zalo/Facebook, không chạy JS) thấy đúng tên/
@@ -45,14 +49,21 @@ let PageRenderService = class PageRenderService {
             return this.template.html;
         if (!config_1.config.ssoWeb.templateUrl)
             throw new AppError_1.AppError(503, 'Chưa cấu hình SSO_WEB_TEMPLATE_URL.');
-        const res = await fetch(config_1.config.ssoWeb.templateUrl, { signal: AbortSignal.timeout(3000) }).catch(() => null);
+        const headers = { 'Cache-Control': 'no-cache' };
+        if (this.template?.etag)
+            headers['If-None-Match'] = this.template.etag;
+        const res = await fetch(config_1.config.ssoWeb.templateUrl, { headers, signal: AbortSignal.timeout(3000) }).catch(() => null);
+        if (this.template && res?.status === 304) {
+            this.template.at = Date.now();
+            return this.template.html;
+        }
         if (!res?.ok) {
             // Giữ bản cũ nếu có - sso-web đang deploy lại cũng không làm trang lỗi.
             if (this.template)
                 return this.template.html;
             throw new AppError_1.AppError(502, 'Không tải được khuôn trang sso-web.');
         }
-        this.template = { at: Date.now(), html: await res.text() };
+        this.template = { at: Date.now(), html: await res.text(), etag: res.headers.get('etag') };
         return this.template.html;
     }
     metaBlock(b, rawPath) {
