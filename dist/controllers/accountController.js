@@ -10,6 +10,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AccountController = void 0;
+exports.currentSessionId = currentSessionId;
 const tsyringe_1 = require("tsyringe");
 const cookie_1 = require("../config/cookie");
 const jwt_1 = require("../config/jwt");

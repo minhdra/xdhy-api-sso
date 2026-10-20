@@ -19,6 +19,12 @@ export interface SessionRow {
   remember: boolean;
 }
 
+export interface AdminSessionRow extends SessionRow {
+  user_id: string;
+  user_name: string;
+  full_name: string | null;
+}
+
 // Bảng mới của riêng api-sso (a_session/a_refresh_token, xem
 // db/migrations/) - SQL thuần qua Database.raw(), không qua stored procedure
 // như phần còn lại của DB (xem comment trong config/database.ts).
@@ -140,6 +146,48 @@ export class SessionRepository {
        WHERE session_id = $1 AND user_id = $2 AND revoked_at IS NULL
        RETURNING session_id`,
       [sessionId, userId],
+    );
+    if (rows.length > 0) {
+      await this.db.raw(
+        `UPDATE a_refresh_token SET revoked_at = now() WHERE session_id = $1`,
+        [sessionId],
+      );
+    }
+    return rows.length;
+  }
+
+  // Quản trị: phiên còn hiệu lực của MỌI người, kèm tên đăng nhập/họ tên. `q`
+  // tìm theo tên đăng nhập, họ tên hoặc IP. Trả thêm tổng số dòng khớp.
+  async listActiveAll(params: {
+    q: string;
+    limit: number;
+    offset: number;
+  }): Promise<{ rows: AdminSessionRow[]; total: number }> {
+    const like = params.q ? `%${params.q.replace(/[\\%_]/g, '\\$&')}%` : null;
+    const rows = await this.db.raw(
+      `SELECT s.session_id, s.user_id, u.user_name, p.full_name, s.user_agent, s.ip,
+              s.created_at, s.last_seen_at, s.expires_at, s.remember,
+              count(*) OVER () AS total
+       FROM a_session s
+       JOIN system_users u ON u.user_id = s.user_id
+       LEFT JOIN user_profiles p ON p.user_id = s.user_id
+       WHERE s.revoked_at IS NULL AND s.expires_at > now()
+         AND ($1::text IS NULL OR u.user_name ILIKE $1 OR p.full_name ILIKE $1 OR s.ip ILIKE $1)
+       ORDER BY s.last_seen_at DESC
+       LIMIT $2 OFFSET $3`,
+      [like, params.limit, params.offset],
+    );
+    const total = rows.length > 0 ? Number(rows[0].total) : 0;
+    return { rows: rows.map(({ total: _t, ...rest }: AdminSessionRow & { total: string }) => rest), total };
+  }
+
+  // Quản trị thu hồi 1 phiên bất kỳ (không ràng buộc user_id). Trả số dòng đổi.
+  async revokeSessionAny(sessionId: string): Promise<number> {
+    const rows = await this.db.raw(
+      `UPDATE a_session SET revoked_at = now()
+       WHERE session_id = $1 AND revoked_at IS NULL
+       RETURNING session_id`,
+      [sessionId],
     );
     if (rows.length > 0) {
       await this.db.raw(
