@@ -21,13 +21,16 @@ let AdminSessionService = class AdminSessionService {
         this.sessions = sessions;
     }
     async list(params, currentSessionId) {
-        const { rows, total } = await this.sessions.listActiveAll({
+        const { users, total } = await this.sessions.listActiveByUser({
             q: params.q,
             limit: params.pageSize,
             offset: (params.page - 1) * params.pageSize,
         });
         return {
-            items: rows.map((s) => ({ ...s, current: s.session_id === currentSessionId })),
+            items: users.map((u) => ({
+                ...u,
+                sessions: u.sessions.map((s) => ({ ...s, current: s.session_id === currentSessionId })),
+            })),
             total,
             page: params.page,
             page_size: params.pageSize,

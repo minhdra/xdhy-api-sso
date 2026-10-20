@@ -44,7 +44,7 @@ discovery) — service khác verify JWT bằng key ở đây (package `jwks-rsa`
 | POST | `/account/change-password` | `{ oldPassword, newPassword }` | Verify mật khẩu cũ bằng bcrypt trước khi đổi |
 | GET | `/account/sessions` | — | Danh sách phiên đang hoạt động, cờ `current` cho phiên gọi request này |
 | POST | `/account/sessions/revoke` | `{ session_id }` | Không thu hồi được **chính phiên hiện tại** (dùng `/logout`) |
-| GET | `/admin/sessions?q=&page=&page_size=` | admin | Phiên đăng nhập đang hoạt động của **mọi người** (kèm `user_name`, `full_name`, cờ `current`); `q` tìm theo tên đăng nhập / họ tên / IP. Trả `{ items, total, page, page_size }` |
+| GET | `/admin/sessions?q=&page=&page_size=` | admin | Người đang có phiên còn hiệu lực, **gom theo người** (phân trang theo người, mới hoạt động trước): `{ items: [{ user_id, user_name, full_name, session_count, last_seen_at, sessions: [{ session_id, user_agent, ip, …, current }] }], total (số người), page, page_size }`; `q` tìm theo tên đăng nhập / họ tên / IP |
 | POST | `/admin/sessions/revoke` | admin | `{ session_id }` thu hồi 1 phiên bất kỳ; không thu hồi được phiên hiện tại (400), phiên không tồn tại/đã thu hồi → 404 |
 | POST | `/admin/sessions/revoke-user` | admin | `{ user_id }` thu hồi mọi phiên của 1 người; không áp dụng cho chính mình (400) |
 

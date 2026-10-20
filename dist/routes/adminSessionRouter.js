@@ -16,7 +16,7 @@ adminSessionRouter.get('/admin/sessions', ...(0, defineRoute_1.defineRoute)({
     method: 'get',
     path: '/admin/sessions',
     tags,
-    summary: 'Phiên đăng nhập đang hoạt động của mọi người (q: tên đăng nhập / họ tên / IP)',
+    summary: 'Người đang có phiên đăng nhập (gom theo người, phân trang theo người) kèm phiên của từng người (q: tên đăng nhập / họ tên / IP)',
     schema: { query: adminSession_schema_1.adminSessionsQuerySchema },
     responses: { 200: { description: 'OK' }, 403: { description: 'Không phải quản trị viên' } },
 }), controller.list.bind(controller));

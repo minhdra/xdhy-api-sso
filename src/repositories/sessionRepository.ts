@@ -19,10 +19,12 @@ export interface SessionRow {
   remember: boolean;
 }
 
-export interface AdminSessionRow extends SessionRow {
+export interface AdminSessionUserRow {
   user_id: string;
   user_name: string;
   full_name: string | null;
+  session_count: number;
+  last_seen_at: string;
 }
 
 // Bảng mới của riêng api-sso (a_session/a_refresh_token, xem
@@ -156,29 +158,46 @@ export class SessionRepository {
     return rows.length;
   }
 
-  // Quản trị: phiên còn hiệu lực của MỌI người, kèm tên đăng nhập/họ tên. `q`
-  // tìm theo tên đăng nhập, họ tên hoặc IP. Trả thêm tổng số dòng khớp.
-  async listActiveAll(params: {
+  // Quản trị: người dùng đang có phiên còn hiệu lực (gom theo người, phân trang
+  // theo NGƯỜI), kèm phiên của từng người. `q` tìm theo tên đăng nhập, họ tên
+  // hoặc IP của phiên. Người có hoạt động gần nhất xếp trước.
+  async listActiveByUser(params: {
     q: string;
     limit: number;
     offset: number;
-  }): Promise<{ rows: AdminSessionRow[]; total: number }> {
+  }): Promise<{ users: (AdminSessionUserRow & { sessions: SessionRow[] })[]; total: number }> {
     const like = params.q ? `%${params.q.replace(/[\\%_]/g, '\\$&')}%` : null;
-    const rows = await this.db.raw(
-      `SELECT s.session_id, s.user_id, u.user_name, p.full_name, s.user_agent, s.ip,
-              s.created_at, s.last_seen_at, s.expires_at, s.remember,
+    const users = await this.db.raw(
+      `SELECT s.user_id, u.user_name, p.full_name,
+              count(*)::int AS session_count, max(s.last_seen_at) AS last_seen_at,
               count(*) OVER () AS total
        FROM a_session s
        JOIN system_users u ON u.user_id = s.user_id
        LEFT JOIN user_profiles p ON p.user_id = s.user_id
        WHERE s.revoked_at IS NULL AND s.expires_at > now()
          AND ($1::text IS NULL OR u.user_name ILIKE $1 OR p.full_name ILIKE $1 OR s.ip ILIKE $1)
-       ORDER BY s.last_seen_at DESC
+       GROUP BY s.user_id, u.user_name, p.full_name
+       ORDER BY max(s.last_seen_at) DESC
        LIMIT $2 OFFSET $3`,
       [like, params.limit, params.offset],
     );
-    const total = rows.length > 0 ? Number(rows[0].total) : 0;
-    return { rows: rows.map(({ total: _t, ...rest }: AdminSessionRow & { total: string }) => rest), total };
+    if (users.length === 0) return { users: [], total: 0 };
+    const sessions: (SessionRow & { user_id: string })[] = await this.db.raw(
+      `SELECT session_id, user_id, user_agent, ip, created_at, last_seen_at, expires_at, remember
+       FROM a_session
+       WHERE user_id = ANY($1::text[]) AND revoked_at IS NULL AND expires_at > now()
+       ORDER BY last_seen_at DESC`,
+      [users.map((u: { user_id: string }) => u.user_id)],
+    );
+    return {
+      total: Number(users[0].total),
+      users: users.map(({ total: _t, ...u }: AdminSessionUserRow & { total: string }) => ({
+        ...u,
+        sessions: sessions
+          .filter((x) => x.user_id === u.user_id)
+          .map(({ user_id: _id, ...rest }) => rest),
+      })),
+    };
   }
 
   // Quản trị thu hồi 1 phiên bất kỳ (không ràng buộc user_id). Trả số dòng đổi.

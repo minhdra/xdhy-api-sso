@@ -20,7 +20,7 @@ adminSessionRouter.get(
     method: 'get',
     path: '/admin/sessions',
     tags,
-    summary: 'Phiên đăng nhập đang hoạt động của mọi người (q: tên đăng nhập / họ tên / IP)',
+    summary: 'Người đang có phiên đăng nhập (gom theo người, phân trang theo người) kèm phiên của từng người (q: tên đăng nhập / họ tên / IP)',
     schema: { query: adminSessionsQuerySchema },
     responses: { 200: { description: 'OK' }, 403: { description: 'Không phải quản trị viên' } },
   }),
