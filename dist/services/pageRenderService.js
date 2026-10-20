@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PageRenderService = void 0;
 const tsyringe_1 = require("tsyringe");
+const avatarUpload_1 = require("../config/avatarUpload");
 const config_1 = require("../config/config");
 const AppError_1 = require("../errors/AppError");
 const brandingRepository_1 = require("../repositories/brandingRepository");
@@ -58,15 +59,19 @@ let PageRenderService = class PageRenderService {
         const origin = config_1.config.ssoWeb.publicUrl;
         // Chỉ nhận path nội bộ (bắt đầu "/", không "//") - tránh og:url trỏ domain khác.
         const path = /^\/(?!\/)[^\s"<>]*$/.test(rawPath) ? rawPath : '/';
+        // DB lưu "/api-sso/uploads/branding/..." - đường dẫn nội bộ api-sso, KHÔNG mở
+        // được từ ngoài. Phải qua toPublicAvatarUrl -> "/api/api-sso/uploads/..." (gateway
+        // mở công khai) rồi mới ghép origin; thiếu bước này og:image/favicon 404 (20/10/2026).
         const abs = (url, fallback) => {
-            const u = url || fallback;
+            const u = (0, avatarUpload_1.toPublicAvatarUrl)(url) || fallback;
             return /^https?:\/\//.test(u) ? u : `${origin}${u}`;
         };
         const title = `${b.app_name} — ${b.org_name}`;
         const description = b.login_description || b.tagline || `Cổng đăng nhập một lần (SSO) của ${b.org_name}.`;
         const image = abs(b.logo_light, '/logo.png');
-        const icons = b.favicon
-            ? [`<link rel="icon" href="${esc(b.favicon)}" />`, `<link rel="apple-touch-icon" href="${esc(b.favicon)}" />`]
+        const favicon = b.favicon ? abs(b.favicon, '/favicon.ico') : null;
+        const icons = favicon
+            ? [`<link rel="icon" href="${esc(favicon)}" />`, `<link rel="apple-touch-icon" href="${esc(favicon)}" />`]
             : [
                 '<link rel="icon" type="image/x-icon" href="/favicon.ico" />',
                 '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />',
@@ -92,7 +97,7 @@ let PageRenderService = class PageRenderService {
             `<meta property="og:image" content="${esc(image)}" />`,
             `<meta property="og:image:alt" content="${esc(`${b.org_name} — Cổng đăng nhập`)}" />`,
             '<meta property="og:locale" content="vi_VN" />',
-            '<meta name="twitter:card" content="summary_large_image" />',
+            '<meta name="twitter:card" content="summary" />',
             `<meta name="twitter:title" content="${esc(`Đăng nhập — ${b.org_name}`)}" />`,
             `<meta name="twitter:description" content="${esc(description)}" />`,
             `<meta name="twitter:image" content="${esc(image)}" />`,

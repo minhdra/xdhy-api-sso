@@ -13,6 +13,7 @@
 > | `0003_delete_role_without_role_functions.sql` | `DeleteRole` chỉ xoá mềm `roles` (bảng tính năng thuộc từng app). |
 > | `0004_sync_outbox.sql` | Bảng `a_sync_outbox` - hàng đợi đồng bộ sang app. |
 > | `0005_delete_user_soft.sql` | `DeleteUser` xoá mềm + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, lỗi FK). |
+> | `0016_org_setting_show_short_name.sql` | (20/10/2026) Cột `a_org_setting.show_short_name` (mặc định false) - hiện tên viết tắt cạnh logo ở header. **Chưa áp** - áp trước khi deploy api-sso mới. |
 > | `0015_org_unit_employee_count.sql` | (14/10/2026) `SearchBranch`/`SearchDepartment` trả thêm `employee_count` (nhân sự đang hoạt động) cho cột "Số nhân sự" ở sso-web. **Đã áp 14/10/2026 lên 112.78.1.3.** |
 > | `0014_position_rank_weight.sql` | (14/10/2026) Trọng số cấp bậc chức vụ quản lý tập trung ở SSO: `positions.rank_weight smallint` (CHECK 1..1000, NULL = chưa xếp cấp); `InsertPosition`/`UpdatePosition` thêm bản có `p_rank_weight` (bản cũ giữ để deploy lệch pha); `SearchPosition` trả thêm `rank_weight` + `employee_count`, sắp theo trọng số. Đi kèm `scripts/sso-management/backfill-position-rank-weight.js` (chép trọng số từ task, chạy 1 lần). **Đã áp + backfill 14/10/2026 lên 112.78.1.3.** |
 > | `0013_user_email_unique.sql` | (08/10/2026) Email duy nhất (không phân biệt hoa thường) trong user **đang hoạt động** (`ux_user_profiles_email_active`). Dừng + liệt kê nếu dữ liệu còn trùng. Chưa áp (DB 112.78.1.3 hiện không trùng). |

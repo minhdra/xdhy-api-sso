@@ -8,6 +8,7 @@ export type BrandingImageKind = (typeof BRANDING_IMAGE_KINDS)[number];
 export interface BrandingRow {
   org_name: string;
   short_name: string;
+  show_short_name: boolean;
   app_name: string;
   tagline: string | null;
   login_heading: string | null;
@@ -32,7 +33,7 @@ export class BrandingRepository {
 
   async get(): Promise<BrandingRow | null> {
     const rows = await this.db.raw(
-      `SELECT org_name, short_name, app_name, tagline, login_heading, login_description, primary_color,
+      `SELECT org_name, short_name, show_short_name, app_name, tagline, login_heading, login_description, primary_color,
               footer_text, footer_links, logo_light, logo_dark, favicon, login_background, lu_updated
        FROM a_org_setting WHERE id = 1`,
     );
@@ -43,7 +44,7 @@ export class BrandingRepository {
     await this.db.raw(
       `UPDATE a_org_setting SET org_name = $1, short_name = $2, app_name = $3, tagline = $4,
               login_heading = $5, login_description = $6, primary_color = $7, footer_text = $8,
-              footer_links = $9::jsonb, lu_user_id = $10, lu_updated = now()
+              footer_links = $9::jsonb, show_short_name = $10, lu_user_id = $11, lu_updated = now()
        WHERE id = 1`,
       [
         t.org_name,
@@ -55,6 +56,7 @@ export class BrandingRepository {
         t.primary_color,
         t.footer_text,
         JSON.stringify(t.footer_links),
+        t.show_short_name,
         actor,
       ],
     );

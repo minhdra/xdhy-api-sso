@@ -1,5 +1,6 @@
 import { injectable } from 'tsyringe';
 
+import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { config } from '../config/config';
 import { AppError } from '../errors/AppError';
 import { type BrandingRow, BrandingRepository } from '../repositories/brandingRepository';
@@ -49,16 +50,20 @@ export class PageRenderService {
     const origin = config.ssoWeb.publicUrl;
     // Chỉ nhận path nội bộ (bắt đầu "/", không "//") - tránh og:url trỏ domain khác.
     const path = /^\/(?!\/)[^\s"<>]*$/.test(rawPath) ? rawPath : '/';
+    // DB lưu "/api-sso/uploads/branding/..." - đường dẫn nội bộ api-sso, KHÔNG mở
+    // được từ ngoài. Phải qua toPublicAvatarUrl -> "/api/api-sso/uploads/..." (gateway
+    // mở công khai) rồi mới ghép origin; thiếu bước này og:image/favicon 404 (20/10/2026).
     const abs = (url: string | null, fallback: string) => {
-      const u = url || fallback;
+      const u = toPublicAvatarUrl(url) || fallback;
       return /^https?:\/\//.test(u) ? u : `${origin}${u}`;
     };
     const title = `${b.app_name} — ${b.org_name}`;
     const description =
       b.login_description || b.tagline || `Cổng đăng nhập một lần (SSO) của ${b.org_name}.`;
     const image = abs(b.logo_light, '/logo.png');
-    const icons = b.favicon
-      ? [`<link rel="icon" href="${esc(b.favicon)}" />`, `<link rel="apple-touch-icon" href="${esc(b.favicon)}" />`]
+    const favicon = b.favicon ? abs(b.favicon, '/favicon.ico') : null;
+    const icons = favicon
+      ? [`<link rel="icon" href="${esc(favicon)}" />`, `<link rel="apple-touch-icon" href="${esc(favicon)}" />`]
       : [
           '<link rel="icon" type="image/x-icon" href="/favicon.ico" />',
           '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />',
@@ -84,7 +89,7 @@ export class PageRenderService {
       `<meta property="og:image" content="${esc(image)}" />`,
       `<meta property="og:image:alt" content="${esc(`${b.org_name} — Cổng đăng nhập`)}" />`,
       '<meta property="og:locale" content="vi_VN" />',
-      '<meta name="twitter:card" content="summary_large_image" />',
+      '<meta name="twitter:card" content="summary" />',
       `<meta name="twitter:title" content="${esc(`Đăng nhập — ${b.org_name}`)}" />`,
       `<meta name="twitter:description" content="${esc(description)}" />`,
       `<meta name="twitter:image" content="${esc(image)}" />`,
