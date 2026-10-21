@@ -293,7 +293,9 @@ let OrgService = class OrgService {
             throw toAppError(error);
         }
         let emailed = false;
-        if (email) {
+        // Tài khoản đang khoá: không gửi mail, admin tự chuyển mật khẩu mới.
+        const locked = (await this.repo.getUserDetail(userId))?.online_flag === 1;
+        if (email && !locked) {
             try {
                 await nodemailer_1.default
                     .createTransport({

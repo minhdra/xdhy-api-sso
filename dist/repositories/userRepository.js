@@ -45,7 +45,8 @@ let UserRepository = class UserRepository {
         const rows = await this.db.raw(`SELECT s.user_id, s.user_name
        FROM system_users s
        JOIN user_profiles u ON u.user_id = s.user_id
-       WHERE s.active_flag = 1 AND u.active_flag = 1 AND lower(trim(u.email)) = lower(trim($1))
+       WHERE s.active_flag = 1 AND u.active_flag = 1 AND coalesce(s.online_flag, 0) = 0
+         AND lower(trim(u.email)) = lower(trim($1))
        LIMIT 1`, [email]);
         return rows[0] ?? null;
     }
