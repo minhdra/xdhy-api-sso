@@ -95,6 +95,48 @@ let SessionRepository = class SessionRepository {
         }
         return rows.length;
     }
+    // Quản trị: người dùng đang có phiên còn hiệu lực (gom theo người, phân trang
+    // theo NGƯỜI), kèm phiên của từng người. `q` tìm theo tên đăng nhập, họ tên
+    // hoặc IP của phiên. Người có hoạt động gần nhất xếp trước.
+    async listActiveByUser(params) {
+        const like = params.q ? `%${params.q.replace(/[\\%_]/g, '\\$&')}%` : null;
+        const users = await this.db.raw(`SELECT s.user_id, u.user_name, p.full_name,
+              count(*)::int AS session_count, max(s.last_seen_at) AS last_seen_at,
+              count(*) OVER () AS total
+       FROM a_session s
+       JOIN system_users u ON u.user_id = s.user_id
+       LEFT JOIN user_profiles p ON p.user_id = s.user_id
+       WHERE s.revoked_at IS NULL AND s.expires_at > now()
+         AND ($1::text IS NULL OR u.user_name ILIKE $1 OR p.full_name ILIKE $1 OR s.ip ILIKE $1)
+       GROUP BY s.user_id, u.user_name, p.full_name
+       ORDER BY max(s.last_seen_at) DESC
+       LIMIT $2 OFFSET $3`, [like, params.limit, params.offset]);
+        if (users.length === 0)
+            return { users: [], total: 0 };
+        const sessions = await this.db.raw(`SELECT session_id, user_id, user_agent, ip, created_at, last_seen_at, expires_at, remember
+       FROM a_session
+       WHERE user_id = ANY($1::text[]) AND revoked_at IS NULL AND expires_at > now()
+       ORDER BY last_seen_at DESC`, [users.map((u) => u.user_id)]);
+        return {
+            total: Number(users[0].total),
+            users: users.map(({ total: _t, ...u }) => ({
+                ...u,
+                sessions: sessions
+                    .filter((x) => x.user_id === u.user_id)
+                    .map(({ user_id: _id, ...rest }) => rest),
+            })),
+        };
+    }
+    // Quản trị thu hồi 1 phiên bất kỳ (không ràng buộc user_id). Trả số dòng đổi.
+    async revokeSessionAny(sessionId) {
+        const rows = await this.db.raw(`UPDATE a_session SET revoked_at = now()
+       WHERE session_id = $1 AND revoked_at IS NULL
+       RETURNING session_id`, [sessionId]);
+        if (rows.length > 0) {
+            await this.db.raw(`UPDATE a_refresh_token SET revoked_at = now() WHERE session_id = $1`, [sessionId]);
+        }
+        return rows.length;
+    }
     // Thu hồi MỌI phiên còn hiệu lực của 1 user (admin khoá tài khoản).
     async revokeAllForUser(userId) {
         await this.db.raw(`UPDATE a_refresh_token SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, [userId]);

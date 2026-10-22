@@ -20,7 +20,7 @@ let BrandingRepository = class BrandingRepository {
         this.db = db;
     }
     async get() {
-        const rows = await this.db.raw(`SELECT org_name, short_name, app_name, tagline, login_heading, login_description, primary_color,
+        const rows = await this.db.raw(`SELECT org_name, short_name, show_short_name, app_name, tagline, login_heading, login_description, primary_color,
               footer_text, footer_links, logo_light, logo_dark, favicon, login_background, lu_updated
        FROM a_org_setting WHERE id = 1`);
         return rows[0] ?? null;
@@ -28,7 +28,7 @@ let BrandingRepository = class BrandingRepository {
     async updateText(t, actor) {
         await this.db.raw(`UPDATE a_org_setting SET org_name = $1, short_name = $2, app_name = $3, tagline = $4,
               login_heading = $5, login_description = $6, primary_color = $7, footer_text = $8,
-              footer_links = $9::jsonb, lu_user_id = $10, lu_updated = now()
+              footer_links = $9::jsonb, show_short_name = $10, lu_user_id = $11, lu_updated = now()
        WHERE id = 1`, [
             t.org_name,
             t.short_name,
@@ -39,6 +39,7 @@ let BrandingRepository = class BrandingRepository {
             t.primary_color,
             t.footer_text,
             JSON.stringify(t.footer_links),
+            t.show_short_name,
             actor,
         ]);
     }

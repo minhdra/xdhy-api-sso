@@ -7,6 +7,7 @@ const express_1 = require("express");
 const accountRouter_1 = __importDefault(require("./accountRouter"));
 const adminAppRouter_1 = __importDefault(require("./adminAppRouter"));
 const adminOrgRouter_1 = __importDefault(require("./adminOrgRouter"));
+const adminSessionRouter_1 = __importDefault(require("./adminSessionRouter"));
 const authRouter_1 = __importDefault(require("./authRouter"));
 const brandingRouter_1 = __importDefault(require("./brandingRouter"));
 const docsRouter_1 = __importDefault(require("./docsRouter"));
@@ -21,4 +22,5 @@ router.use('/', accountRouter_1.default);
 // Tự bảo vệ bằng requireAuth + requireAdmin bên trong (xem adminAppRouter.ts).
 router.use('/', adminAppRouter_1.default);
 router.use('/', adminOrgRouter_1.default);
+router.use('/', adminSessionRouter_1.default);
 exports.default = router;

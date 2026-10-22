@@ -105,9 +105,32 @@ let AdminOrgController = class AdminOrgController {
         this.syncStatus = handle(async () => ({
             enabled_targets: this.sync.enabledTargets(),
             summary: await this.sync.summary(),
-            failed: await this.sync.listFailed(null),
         }));
-        this.syncRetry = handle(async (req) => ok('Đã đưa lại vào hàng đợi.', { count: await this.sync.retryFailed(req.body.target ?? null) }));
+        this.syncHistory = handle(async (req) => {
+            const f = req.body;
+            const { rows, total } = await this.sync.history({
+                target: f.target ?? null,
+                status: f.status ?? null,
+                entity: f.entity ?? null,
+                search: f.search ?? null,
+                pageIndex: f.pageIndex,
+                pageSize: f.pageSize,
+            });
+            return { totalItems: total, page: f.pageIndex, pageSize: f.pageSize, data: rows };
+        });
+        this.syncRetry = handle(async (req) => {
+            const { target, ids } = req.body;
+            const count = await this.sync.retry(target ?? null, ids ?? null);
+            return ok(count ? `Đã đưa ${count} thay đổi vào hàng đợi, đang gửi lại.` : 'Không có thay đổi nào cần thử lại.', {
+                count,
+            });
+        });
+        this.syncSkip = handle(async (req, actor) => {
+            const { target, ids } = req.body;
+            const me = await this.org.getUser(actor).catch(() => null);
+            const count = await this.sync.skip(target ?? null, ids ?? null, me?.full_name || me?.user_name || actor);
+            return ok(count ? `Đã bỏ qua ${count} thay đổi.` : 'Không có thay đổi nào đang chờ hoặc lỗi.', { count });
+        });
         this.syncResync = handle(async (req, actor) => {
             const { target } = req.body;
             if (!this.sync.enabledTargets().includes(target)) {

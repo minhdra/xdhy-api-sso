@@ -24,10 +24,19 @@ class SyncHttpError extends Error {
   ) {
     super(message);
   }
-  // Đích từ chối dữ liệu (400/404/409/422...) - gửi lại y nguyên vẫn lỗi. Trừ
-  // 408/429 (tạm thời) và lỗi mạng/5xx (status null hoặc >= 500) thì thử lại.
-  get permanent(): boolean {
-    return this.status !== null && this.status >= 400 && this.status < 500 && ![408, 429].includes(this.status);
+  // Phân loại để quyết định có chặn hàng đợi của đích hay không:
+  //  - rejected: đích từ chối dữ liệu (4xx trừ 408/429) - gửi lại y nguyên vẫn
+  //    lỗi -> 'failed' ngay, gửi tiếp dòng sau.
+  //  - server: đích nhận được nhưng xử lý lỗi (500/501...) - thường cũng là lỗi
+  //    dữ liệu (vd chat/meeting trả 500 khi trùng SĐT unique) -> thử vài lần
+  //    rồi 'failed', KHÔNG chặn hàng đợi mãi (sự cố thật 10/2026).
+  //  - unavailable: mất kết nối/timeout/502-504/408/429 - đích đang tạm sập ->
+  //    giữ thứ tự, chờ backoff rồi thử lại.
+  get kind(): 'rejected' | 'server' | 'unavailable' {
+    const s = this.status;
+    if (s === null || [408, 429, 502, 503, 504].includes(s)) return 'unavailable';
+    if (s >= 500) return 'server';
+    return 'rejected';
   }
 }
 
@@ -72,9 +81,30 @@ export class SyncService {
         .filter((e) => e.entity === 'user' || e.entity === 'user_roles')
         .map((e) => (e.entity === 'user_roles' ? { ...e, entity: 'user' as SyncEntity, op: 'upsert' as const } : e));
       await this.outbox.enqueue(userOnly, userEvents, actorId);
+      // Dòng cũ của chính entity này đang chờ thử lại (vd lỗi trùng SĐT vừa
+      // được admin sửa) -> gửi lại ngay, không đợi hết backoff.
+      await this.outbox.wakeEntities(org, events);
+      await this.outbox.wakeEntities(userOnly, userEvents);
       kickSyncWorker();
     } catch (error) {
       console.error('[sync] ghi outbox thất bại:', (error as Error).message, events);
+    }
+  }
+
+  // Gửi lại "xoá" user đã xoá mềm CHỈ sang chat/meeting (đích có unique
+  // SĐT/email) để nhả các giá trị đó trước khi user khác dùng lại. Finance/
+  // task không cần (chỉ so user đang hoạt động). Không throw, như notify().
+  async releaseDeletedUsers(userIds: string[], actorId: string | null): Promise<void> {
+    if (!userIds.length) return;
+    try {
+      const targets = this.enabledTargets().filter((t) => USER_ONLY_TARGETS.includes(t));
+      await this.outbox.enqueue(
+        targets,
+        userIds.map((entity_id) => ({ entity: 'user' as SyncEntity, op: 'delete' as const, entity_id })),
+        actorId,
+      );
+    } catch (error) {
+      console.error('[sync] ghi outbox nhả user đã xoá thất bại:', (error as Error).message, userIds);
     }
   }
 
@@ -104,12 +134,18 @@ export class SyncService {
     return this.outbox.summary();
   }
 
-  listFailed(target: SyncTarget | null) {
-    return this.outbox.listFailed(target, 200);
+  history(filter: Parameters<SyncOutboxRepository['history']>[0]) {
+    return this.outbox.history(filter);
   }
 
-  async retryFailed(target: SyncTarget | null): Promise<number> {
-    const n = await this.outbox.retryFailed(target);
+  async retry(target: SyncTarget | null, ids: string[] | null): Promise<number> {
+    const n = await this.outbox.retry(target, ids);
+    kickSyncWorker();
+    return n;
+  }
+
+  async skip(target: SyncTarget | null, ids: string[] | null, actorName: string): Promise<number> {
+    const n = await this.outbox.skip(target, ids, `Bỏ qua bởi ${actorName}`);
     kickSyncWorker();
     return n;
   }
@@ -135,16 +171,15 @@ export class SyncService {
             failed++;
             const message = (error as Error).message;
             console.warn(`[sync] ${target} ${row.entity}:${row.entity_id} lỗi (lần ${row.attempts + 1}): ${message}`);
-            // Đích từ chối dữ liệu (vd thiếu số điện thoại) -> 'failed' ngay và
-            // gửi tiếp dòng sau: thử lại không có ích, và để nguyên sẽ chặn cả
-            // hàng đợi của đích này hàng giờ (FIFO). Admin sửa dữ liệu rồi bấm
-            // "Thử lại lỗi" ở tab Đồng bộ.
-            if (error instanceof SyncHttpError && error.permanent) {
-              await this.outbox.markError(row.id, message, 1);
-              continue;
-            }
-            await this.outbox.markError(row.id, message, config.sync.maxAttempts);
-            return; // lỗi tạm thời (mạng/5xx) - giữ thứ tự, target này chờ lượt sau
+            const kind = error instanceof SyncHttpError ? error.kind : 'server';
+            const maxAttempts =
+              kind === 'rejected' ? 1 : kind === 'server' ? config.sync.serverErrorAttempts : config.sync.maxAttempts;
+            const status = await this.outbox.markError(row.id, message, maxAttempts, config.sync.maxBackoffSeconds);
+            // Dòng đã 'failed' -> gửi tiếp dòng sau (admin sửa dữ liệu rồi bấm
+            // "Thử lại" ở tab Đồng bộ). Còn 'pending' (đang backoff) -> giữ thứ
+            // tự, target này chờ lượt sau.
+            if (status === 'failed') continue;
+            return;
           }
         }
       }),

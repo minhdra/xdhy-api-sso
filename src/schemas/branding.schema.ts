@@ -12,6 +12,7 @@ export const updateBrandingSchema = z
   .object({
     org_name: z.string().trim().min(1, 'Tên tổ chức là bắt buộc').max(150),
     short_name: z.string().trim().min(1, 'Tên viết tắt là bắt buộc').max(50),
+    show_short_name: z.boolean().default(false),
     app_name: z.string().trim().min(1, 'Tên ứng dụng là bắt buộc').max(100),
     tagline: nullableText(250),
     login_heading: nullableText(150),

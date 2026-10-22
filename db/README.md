@@ -8,11 +8,17 @@
 >
 > | File (`sso_management/`) | Thay đổi |
 > | --- | --- |
-> | `0001_baseline_tables.sql` | 13 bảng (user/tổ chức/nhóm quyền + `a_*`), không có `country`, không có `positions.rank_weight`. |
+> | `0001_baseline_tables.sql` | 13 bảng (user/tổ chức/nhóm quyền + `a_*`), không có `country`, không có `positions.rank_weight` (thêm ở 0014). |
 > | `0002_baseline_procs.sql` | 59 proc (`a_*` + CRUD user/tổ chức/nhóm quyền), nguyên văn `pg_get_functiondef`. |
 > | `0003_delete_role_without_role_functions.sql` | `DeleteRole` chỉ xoá mềm `roles` (bảng tính năng thuộc từng app). |
 > | `0004_sync_outbox.sql` | Bảng `a_sync_outbox` - hàng đợi đồng bộ sang app. |
 > | `0005_delete_user_soft.sql` | `DeleteUser` xoá mềm + thu hồi phiên + gỡ quyền app (bản gốc xoá cứng, lỗi FK). |
+> | `0016_org_setting_show_short_name.sql` | (20/10/2026) Cột `a_org_setting.show_short_name` (mặc định false) - hiện tên viết tắt cạnh logo ở header. **Đã áp 20/10/2026 lên 112.78.1.3** (từ 20/10/2026 DB này là của KATE / home.kate.vn). |
+> | `0015_org_unit_employee_count.sql` | (14/10/2026) `SearchBranch`/`SearchDepartment` trả thêm `employee_count` (nhân sự đang hoạt động) cho cột "Số nhân sự" ở sso-web. **Đã áp 14/10/2026 lên 112.78.1.3.** |
+> | `0014_position_rank_weight.sql` | (14/10/2026) Trọng số cấp bậc chức vụ quản lý tập trung ở SSO: `positions.rank_weight smallint` (CHECK 1..1000, NULL = chưa xếp cấp); `InsertPosition`/`UpdatePosition` thêm bản có `p_rank_weight` (bản cũ giữ để deploy lệch pha); `SearchPosition` trả thêm `rank_weight` + `employee_count`, sắp theo trọng số. Đi kèm `scripts/sso-management/backfill-position-rank-weight.js` (chép trọng số từ task, chạy 1 lần). **Đã áp + backfill 14/10/2026 lên 112.78.1.3.** |
+> | `0013_user_email_unique.sql` | (08/10/2026) Email duy nhất (không phân biệt hoa thường) trong user **đang hoạt động** (`ux_user_profiles_email_active`). Dừng + liệt kê nếu dữ liệu còn trùng. Chưa áp (DB 112.78.1.3 hiện không trùng). |
+> | `0012_user_phone_unique.sql` | (08/10/2026) SĐT duy nhất trong user **đang hoạt động** (index `ux_user_profiles_phone_active`, số rỗng không tính). **Dừng có chủ đích** nếu dữ liệu còn trùng (liệt kê số + tài khoản) → sửa ở sso-web rồi chạy lại. **Đã áp 08/10/2026 lên 112.78.1.3** (sau khi đổi SĐT `testu` → `0123456780`). |
+> | `0011_sync_outbox_skip_history.sql` | (08/10/2026) `a_sync_outbox`: trạng thái `skipped` + cột `note` + index nhật ký; job dọn xoá cả `skipped`. **Đã áp 08/10/2026 lên 112.78.1.3.** |
 > | `0010_user_name_reuse_after_delete.sql` | (04/10/2026) Tên đăng nhập chỉ duy nhất trong user **đang hoạt động** (index unique một phần `lower(user_name) WHERE active_flag = 1`); `InsertUser` bỏ qua user đã xoá mềm; proc mới `RestoreUser` (khôi phục user đã xoá, giữ `user_id`); `GetUserByAccount`/`ResetPassword` chỉ khớp user đang hoạt động. **Đã áp 04/10/2026 lên 112.78.1.3.** |
 > | `0009_insert_user_order_for_cascade_fk.sql` | Ghi lại khoá ngoại `user_profiles/employee/user_roles/a_*` → `system_users` ON DELETE CASCADE; `InsertUser` ghi `system_users` trước (trước đó ghi `employee` trước → lỗi 23503). |
 > | `0008_search_user_newest_first.sql` | `SearchUser` sắp xếp người mới tạo trước (DESC) + giữ đúng thứ tự trang. |

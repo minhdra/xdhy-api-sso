@@ -1,12 +1,17 @@
 import { injectable } from 'tsyringe';
 
+import { toPublicAvatarUrl } from '../config/avatarUpload';
 import { config } from '../config/config';
 import { AppError } from '../errors/AppError';
 import { type BrandingRow, BrandingRepository } from '../repositories/brandingRepository';
 
 const START = '<!-- branding-meta:start';
 const END = '<!-- branding-meta:end -->';
-const TEMPLATE_TTL_MS = 5 * 60_000;
+// Khuôn index.html đổi mỗi lần deploy sso-web (hash bundle mới). TTL dài làm
+// người dùng bấm "Cập nhật ngay" vẫn nhận index.html cũ -> banner phiên bản
+// hiện lại (20/10/2026). Nên hỏi lại nguồn sau TTL ngắn bằng If-None-Match
+// (304 = giữ bản cũ, gần như không tốn băng thông).
+const TEMPLATE_TTL_MS = 5_000;
 
 const esc = (v: string) =>
   v.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -18,7 +23,7 @@ const esc = (v: string) =>
 // index.html tĩnh.
 @injectable()
 export class PageRenderService {
-  private template: { at: number; html: string } | null = null;
+  private template: { at: number; html: string; etag: string | null } | null = null;
 
   constructor(private branding: BrandingRepository) {}
 
@@ -35,13 +40,19 @@ export class PageRenderService {
   private async loadTemplate(): Promise<string> {
     if (this.template && Date.now() - this.template.at < TEMPLATE_TTL_MS) return this.template.html;
     if (!config.ssoWeb.templateUrl) throw new AppError(503, 'Chưa cấu hình SSO_WEB_TEMPLATE_URL.');
-    const res = await fetch(config.ssoWeb.templateUrl, { signal: AbortSignal.timeout(3000) }).catch(() => null);
+    const headers: Record<string, string> = { 'Cache-Control': 'no-cache' };
+    if (this.template?.etag) headers['If-None-Match'] = this.template.etag;
+    const res = await fetch(config.ssoWeb.templateUrl, { headers, signal: AbortSignal.timeout(3000) }).catch(() => null);
+    if (this.template && res?.status === 304) {
+      this.template.at = Date.now();
+      return this.template.html;
+    }
     if (!res?.ok) {
       // Giữ bản cũ nếu có - sso-web đang deploy lại cũng không làm trang lỗi.
       if (this.template) return this.template.html;
       throw new AppError(502, 'Không tải được khuôn trang sso-web.');
     }
-    this.template = { at: Date.now(), html: await res.text() };
+    this.template = { at: Date.now(), html: await res.text(), etag: res.headers.get('etag') };
     return this.template.html;
   }
 
@@ -49,16 +60,20 @@ export class PageRenderService {
     const origin = config.ssoWeb.publicUrl;
     // Chỉ nhận path nội bộ (bắt đầu "/", không "//") - tránh og:url trỏ domain khác.
     const path = /^\/(?!\/)[^\s"<>]*$/.test(rawPath) ? rawPath : '/';
+    // DB lưu "/api-sso/uploads/branding/..." - đường dẫn nội bộ api-sso, KHÔNG mở
+    // được từ ngoài. Phải qua toPublicAvatarUrl -> "/api/api-sso/uploads/..." (gateway
+    // mở công khai) rồi mới ghép origin; thiếu bước này og:image/favicon 404 (20/10/2026).
     const abs = (url: string | null, fallback: string) => {
-      const u = url || fallback;
+      const u = toPublicAvatarUrl(url) || fallback;
       return /^https?:\/\//.test(u) ? u : `${origin}${u}`;
     };
     const title = `${b.app_name} — ${b.org_name}`;
     const description =
       b.login_description || b.tagline || `Cổng đăng nhập một lần (SSO) của ${b.org_name}.`;
     const image = abs(b.logo_light, '/logo.png');
-    const icons = b.favicon
-      ? [`<link rel="icon" href="${esc(b.favicon)}" />`, `<link rel="apple-touch-icon" href="${esc(b.favicon)}" />`]
+    const favicon = b.favicon ? abs(b.favicon, '/favicon.ico') : null;
+    const icons = favicon
+      ? [`<link rel="icon" href="${esc(favicon)}" />`, `<link rel="apple-touch-icon" href="${esc(favicon)}" />`]
       : [
           '<link rel="icon" type="image/x-icon" href="/favicon.ico" />',
           '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />',
@@ -84,7 +99,7 @@ export class PageRenderService {
       `<meta property="og:image" content="${esc(image)}" />`,
       `<meta property="og:image:alt" content="${esc(`${b.org_name} — Cổng đăng nhập`)}" />`,
       '<meta property="og:locale" content="vi_VN" />',
-      '<meta name="twitter:card" content="summary_large_image" />',
+      '<meta name="twitter:card" content="summary" />',
       `<meta name="twitter:title" content="${esc(`Đăng nhập — ${b.org_name}`)}" />`,
       `<meta name="twitter:description" content="${esc(description)}" />`,
       `<meta name="twitter:image" content="${esc(image)}" />`,

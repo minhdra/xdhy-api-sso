@@ -10,7 +10,7 @@ import { type ChangePasswordInput, type RevokeSessionInput, type UpdateProfileIn
 
 // session_id của phiên đang gọi - nằm trong refresh token cookie (payload
 // refresh = { user_id, session_id, jti }). Access token không mang session_id.
-function currentSessionId(req: Request): string | null {
+export function currentSessionId(req: Request): string | null {
   const token = req.cookies?.[REFRESH_COOKIE];
   const decoded = token ? verifyToken(token) : null;
   return decoded && decoded.type === 'refresh' && decoded.session_id ? decoded.session_id : null;

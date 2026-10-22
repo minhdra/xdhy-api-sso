@@ -62,6 +62,8 @@ route('post', '/roles', ROLES, 'Thêm/sửa nhóm quyền (role_id rỗng = thê
 route('post', '/roles/delete', ROLES, 'Xoá (mềm) nhóm quyền (không xoá được "sa")', c.deleteRoles, { body: adminOrg_schema_1.roleIdsSchema });
 const SYNC = 'Admin - Đồng bộ';
 route('get', '/sync/status', SYNC, 'Trạng thái hàng đợi đồng bộ theo đích', c.syncStatus);
-route('post', '/sync/retry', SYNC, 'Đưa các dòng lỗi (failed) về hàng đợi', c.syncRetry, { body: adminOrg_schema_1.syncTargetSchema });
+route('post', '/sync/history', SYNC, 'Nhật ký đồng bộ (mọi thay đổi, phân trang, lọc)', c.syncHistory, { body: adminOrg_schema_1.syncHistorySchema });
+route('post', '/sync/retry', SYNC, 'Thử lại ngay: dòng lỗi + dòng đang chờ backoff (theo đích hoặc theo id)', c.syncRetry, { body: adminOrg_schema_1.syncTargetSchema });
+route('post', '/sync/skip', SYNC, 'Bỏ qua dòng đang chờ/lỗi để hàng đợi đi tiếp (theo đích hoặc theo id)', c.syncSkip, { body: adminOrg_schema_1.syncTargetSchema });
 route('post', '/sync/resync', SYNC, 'Đồng bộ lại toàn bộ dữ liệu sang 1 đích', c.syncResync, { body: adminOrg_schema_1.syncResyncSchema });
 exports.default = adminOrgRouter;

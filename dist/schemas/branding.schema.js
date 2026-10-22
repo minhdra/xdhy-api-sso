@@ -8,6 +8,7 @@ exports.updateBrandingSchema = zod_1.z
     .object({
     org_name: zod_1.z.string().trim().min(1, 'Tên tổ chức là bắt buộc').max(150),
     short_name: zod_1.z.string().trim().min(1, 'Tên viết tắt là bắt buộc').max(50),
+    show_short_name: zod_1.z.boolean().default(false),
     app_name: zod_1.z.string().trim().min(1, 'Tên ứng dụng là bắt buộc').max(100),
     tagline: nullableText(250),
     login_heading: nullableText(150),

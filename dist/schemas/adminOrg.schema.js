@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncResyncSchema = exports.syncTargetSchema = exports.roleIdsSchema = exports.upsertRoleSchema = exports.searchRoleSchema = exports.intIdsSchema = exports.upsertPositionSchema = exports.searchPositionSchema = exports.upsertDepartmentSchema = exports.searchDepartmentSchema = exports.upsertBranchSchema = exports.searchBranchSchema = exports.setUserRolesSchema = exports.userIdParamSchema = exports.userIdSchema = exports.lockUserSchema = exports.userIdsSchema = exports.updateUserSchema = exports.createUserSchema = exports.searchUserSchema = void 0;
+exports.syncResyncSchema = exports.syncHistorySchema = exports.syncTargetSchema = exports.roleIdsSchema = exports.upsertRoleSchema = exports.searchRoleSchema = exports.intIdsSchema = exports.upsertPositionSchema = exports.searchPositionSchema = exports.upsertDepartmentSchema = exports.searchDepartmentSchema = exports.upsertBranchSchema = exports.searchBranchSchema = exports.setUserRolesSchema = exports.userIdParamSchema = exports.userIdSchema = exports.lockUserSchema = exports.userIdsSchema = exports.updateUserSchema = exports.createUserSchema = exports.searchUserSchema = void 0;
 const zod_1 = require("../openapi/zod");
 const common_schema_1 = require("./common.schema");
 // Quản trị người dùng / chi nhánh / phòng ban / chức vụ / nhóm quyền (chuyển
@@ -90,6 +90,14 @@ exports.upsertPositionSchema = zod_1.z
     position_id: zod_1.z.number().int().nullable().optional(),
     position_name: zod_1.z.string().trim().min(1, 'Tên chức vụ là bắt buộc').max(250),
     description: (0, common_schema_1.optionalString)(),
+    // Trọng số cấp bậc (số lớn = cấp cao). null = chưa xếp cấp; không gửi = giữ nguyên khi sửa.
+    rank_weight: zod_1.z
+        .number()
+        .int('Trọng số phải là số nguyên')
+        .min(1, 'Trọng số từ 1 đến 1000')
+        .max(1000, 'Trọng số từ 1 đến 1000')
+        .nullable()
+        .optional(),
 })
     .openapi('AdminUpsertPositionRequest');
 exports.intIdsSchema = zod_1.z
@@ -114,9 +122,25 @@ exports.roleIdsSchema = zod_1.z
     .object({ role_ids: zod_1.z.array(zod_1.z.string().min(1)).min(1, 'Chưa chọn nhóm quyền') })
     .openapi('AdminRoleIdsRequest');
 // ===== Đồng bộ =====
+const SYNC_TARGET = zod_1.z.enum(['finance', 'task', 'chat', 'meeting']);
+// Thử lại / bỏ qua: theo danh sách id (dòng trong nhật ký) hoặc theo đích
+// (null = mọi đích).
 exports.syncTargetSchema = zod_1.z
-    .object({ target: zod_1.z.enum(['finance', 'task', 'chat', 'meeting']).nullable().optional() })
+    .object({
+    target: SYNC_TARGET.nullable().optional(),
+    ids: zod_1.z.array(zod_1.z.string().regex(/^\d+$/)).min(1).max(500).nullable().optional(),
+})
     .openapi('AdminSyncTargetRequest');
+exports.syncHistorySchema = zod_1.z
+    .object({
+    target: SYNC_TARGET.nullable().optional(),
+    status: zod_1.z.enum(['pending', 'done', 'failed', 'skipped']).nullable().optional(),
+    entity: zod_1.z.enum(['user', 'user_roles', 'branch', 'department', 'position', 'role']).nullable().optional(),
+    search: zod_1.z.string().trim().max(100).nullable().optional(),
+    pageIndex: zod_1.z.number().int().min(1).default(1),
+    pageSize: zod_1.z.number().int().min(1).max(200).default(20),
+})
+    .openapi('AdminSyncHistoryRequest');
 exports.syncResyncSchema = zod_1.z
-    .object({ target: zod_1.z.enum(['finance', 'task', 'chat', 'meeting']) })
+    .object({ target: SYNC_TARGET })
     .openapi('AdminSyncResyncRequest');

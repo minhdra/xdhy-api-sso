@@ -135,9 +135,15 @@ export const config = {
     enabled: envBoolean('SYNC_OUTBOX_ENABLED', true),
     intervalMs: envInt('SYNC_OUTBOX_INTERVAL_MS', 5000),
     batchSize: envInt('SYNC_OUTBOX_BATCH_SIZE', 50),
+    // Lỗi mất kết nối/đích tạm sập: thử tối đa maxAttempts lần (giữ thứ tự).
     maxAttempts: envInt('SYNC_OUTBOX_MAX_ATTEMPTS', 12),
+    // Đích trả 5xx khi xử lý (thường là lỗi dữ liệu): thử ít lần rồi 'failed'
+    // để không chặn cả hàng đợi.
+    serverErrorAttempts: envInt('SYNC_OUTBOX_SERVER_ERROR_ATTEMPTS', 3),
+    maxBackoffSeconds: envInt('SYNC_OUTBOX_MAX_BACKOFF_SECONDS', 300),
     requestTimeoutMs: envInt('SYNC_REQUEST_TIMEOUT_MS', 8000),
-    doneRetentionDays: envInt('SYNC_OUTBOX_DONE_RETENTION_DAYS', 14),
+    // Nhật ký: giữ dòng done/skipped bao lâu (ngày) trước khi job dọn xoá.
+    doneRetentionDays: envInt('SYNC_OUTBOX_DONE_RETENTION_DAYS', 365),
   },
   // Dọn các bản ghi xác thực đã hết giá trị sử dụng. Job chỉ đụng 3 bảng
   // riêng của SSO; mặc định giữ thêm một khoảng retention để phục vụ tra soát.
